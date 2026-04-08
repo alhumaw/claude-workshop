@@ -1,0 +1,105 @@
+import { contextBridge, ipcRenderer } from 'electron';
+import { IPC } from '../shared/types';
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  // Session management
+  spawnSession: (name: string, cwd?: string, avatarSeed?: string) =>
+    ipcRenderer.invoke(IPC.SESSION_SPAWN, { name, cwd, avatarSeed }),
+  killSession: (sessionId: string) =>
+    ipcRenderer.invoke(IPC.SESSION_KILL, { sessionId }),
+  listSessions: () =>
+    ipcRenderer.invoke(IPC.SESSION_LIST),
+  getSessionBuffer: (sessionId: string) =>
+    ipcRenderer.invoke('session:get-buffer', { sessionId }),
+
+  // Terminal I/O
+  writeToTerminal: (sessionId: string, data: string) =>
+    ipcRenderer.send(IPC.TERMINAL_WRITE, { sessionId, data }),
+  onTerminalData: (callback: (sessionId: string, data: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { sessionId: string; data: string }) => {
+      callback(payload.sessionId, payload.data);
+    };
+    ipcRenderer.on(IPC.TERMINAL_DATA, listener);
+    return () => ipcRenderer.removeListener(IPC.TERMINAL_DATA, listener);
+  },
+
+  // Terminal resize
+  resizeTerminal: (sessionId: string, cols: number, rows: number) =>
+    ipcRenderer.send(IPC.SESSION_RESIZE, { sessionId, cols, rows }),
+
+  // Native context menu
+  showSessionContextMenu: (sessionId: string) =>
+    ipcRenderer.send(IPC.SESSION_CONTEXT_MENU, { sessionId }),
+  onContextMenuAction: (callback: (sessionId: string, action: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { sessionId: string; action: string }) => {
+      callback(payload.sessionId, payload.action);
+    };
+    ipcRenderer.on('context-menu:action', listener);
+    return () => ipcRenderer.removeListener('context-menu:action', listener);
+  },
+
+  // Status updates
+  onStatusUpdate: (callback: (sessions: any[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, sessions: any[]) => {
+      callback(sessions);
+    };
+    ipcRenderer.on(IPC.SESSION_STATUS_UPDATE, listener);
+    return () => ipcRenderer.removeListener(IPC.SESSION_STATUS_UPDATE, listener);
+  },
+
+  // Toolkit
+  loadToolkit: (cwd: string) =>
+    ipcRenderer.invoke(IPC.TOOLKIT_LOAD, { cwd }),
+  executeToolkitAction: (sessionId: string, command: string) =>
+    ipcRenderer.invoke(IPC.TOOLKIT_EXECUTE, { sessionId, command }),
+  handoffSession: (sessionId: string) =>
+    ipcRenderer.invoke(IPC.TOOLKIT_HANDOFF, { sessionId }),
+  freshSession: (sessionId: string) =>
+    ipcRenderer.invoke(IPC.TOOLKIT_FRESH_SESSION, { sessionId }),
+
+  // Terminal text extraction — main process asks renderer to serialize
+  // the xterm buffer for a session.  The renderer calls getTerminalText
+  // handler (set by TerminalManager), and sends the result back.
+  onTerminalTextRequest: (callback: (sessionId: string) => string) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { sessionId: string }) => {
+      const text = callback(payload.sessionId);
+      ipcRenderer.send(IPC.TERMINAL_TEXT_RESPONSE, { sessionId: payload.sessionId, text });
+    };
+    ipcRenderer.on(IPC.TERMINAL_GET_TEXT, listener);
+    return () => ipcRenderer.removeListener(IPC.TERMINAL_GET_TEXT, listener);
+  },
+
+  // Shortcuts from main process
+  onShortcut: (channel: string, callback: (...args: any[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, ...args: any[]) => {
+      callback(...args);
+    };
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+
+  // Session restoration
+  onSessionRestored: (callback: (session: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, session: any) => {
+      callback(session);
+    };
+    ipcRenderer.on('session:restored', listener);
+    return () => ipcRenderer.removeListener('session:restored', listener);
+  },
+
+  // Validation
+  validateDirectory: (path: string) =>
+    ipcRenderer.invoke('validate:directory', { path }),
+
+  // Config
+  getConfig: () =>
+    ipcRenderer.invoke(IPC.CONFIG_GET),
+  setConfig: (config: any) =>
+    ipcRenderer.invoke(IPC.CONFIG_SET, config),
+  openFolderDialog: () =>
+    ipcRenderer.invoke(IPC.DIALOG_OPEN_FOLDER),
+
+  // Obsidian export
+  exportToObsidian: (projectDir: string) =>
+    ipcRenderer.invoke(IPC.OBSIDIAN_EXPORT, { projectDir }),
+});

@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+.webpack/
+.vite/
+*.js.map
+.env
+.DS_Store

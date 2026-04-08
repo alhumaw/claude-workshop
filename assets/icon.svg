@@ -1,0 +1,58 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="#1e1a18"/>
+
+  <!-- Handle depth shadow -->
+  <path d="M346 378 L346 278 Q346 192 419 192 L605 192 Q678 192 678 278 L678 378"
+    fill="none" stroke="#6B2810" stroke-width="62" stroke-linecap="round"/>
+  <!-- Handle body -->
+  <path d="M346 378 L346 278 Q346 192 419 192 L605 192 Q678 192 678 278 L678 378"
+    fill="none" stroke="#D97757" stroke-width="46" stroke-linecap="round"/>
+  <!-- Handle inner highlight -->
+  <path d="M346 378 L346 278 Q346 192 419 192 L605 192 Q678 192 678 278 L678 378"
+    fill="none" stroke="#E8956B" stroke-width="24" stroke-linecap="round"/>
+
+  <!-- Lid shadow -->
+  <rect x="168" y="362" width="688" height="110" rx="42" fill="#6B2810"/>
+  <!-- Lid -->
+  <rect x="172" y="357" width="680" height="108" rx="42" fill="#D97757"/>
+  <!-- Lid top highlight -->
+  <rect x="172" y="357" width="680" height="46" rx="42" fill="#E8956B" opacity="0.4"/>
+
+  <!-- Body shadow -->
+  <rect x="168" y="442" width="688" height="396" rx="42" fill="#6B2810"/>
+  <!-- Box body -->
+  <rect x="172" y="437" width="680" height="395" rx="42" fill="#C4623A"/>
+  <!-- Top shadow band -->
+  <rect x="172" y="437" width="680" height="30" rx="0" fill="#7A3010" opacity="0.5"/>
+
+  <!-- Seam -->
+  <rect x="172" y="462" width="680" height="13" fill="#9A4420"/>
+
+  <!-- Left drawer -->
+  <rect x="200" y="498" width="283" height="312" rx="20" fill="#A84820" opacity="0.55"/>
+  <rect x="200" y="498" width="283" height="7" rx="4" fill="#E8956B" opacity="0.2"/>
+  <!-- Left pull outer -->
+  <rect x="291" y="642" width="101" height="29" rx="14" fill="#C4623A"/>
+  <!-- Left pull inner -->
+  <rect x="298" y="647" width="87" height="19" rx="9" fill="#D97757"/>
+
+  <!-- Right drawer -->
+  <rect x="541" y="498" width="283" height="312" rx="20" fill="#A84820" opacity="0.55"/>
+  <rect x="541" y="498" width="283" height="7" rx="4" fill="#E8956B" opacity="0.2"/>
+  <!-- Right pull outer -->
+  <rect x="632" y="642" width="101" height="29" rx="14" fill="#C4623A"/>
+  <!-- Right pull inner -->
+  <rect x="639" y="647" width="87" height="19" rx="9" fill="#D97757"/>
+
+  <!-- Center latch housing -->
+  <rect x="448" y="464" width="128" height="78" rx="19" fill="#6B2810"/>
+  <rect x="456" y="471" width="112" height="64" rx="14" fill="#8B3010"/>
+  <!-- Latch button -->
+  <circle cx="512" cy="503" r="22" fill="#D97757"/>
+  <circle cx="512" cy="503" r="13" fill="#B85230"/>
+  <circle cx="512" cy="503" r="6"  fill="#E8956B"/>
+
+  <!-- Bottom specular -->
+  <rect x="172" y="797" width="680" height="35" rx="42" fill="#5A1E08" opacity="0.6"/>
+</svg>

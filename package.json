@@ -1,0 +1,40 @@
+{
+  "name": "claude-workshop",
+  "version": "0.1.0",
+  "description": "Desktop app for managing multiple Claude Code terminal sessions",
+  "productName": "Claude Workshop",
+  "main": ".webpack/main",
+  "scripts": {
+    "generate-icon": "node scripts/generate-icon.js",
+    "prestart": "bash scripts/patch-electron.sh",
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "0.10.0",
+    "@xterm/addon-web-links": "0.11.0",
+    "node-pty": "1.1.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "xterm": "5.3.0",
+    "zustand": "5.0.10"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.4.0",
+    "@electron-forge/maker-dmg": "7.4.0",
+    "@electron-forge/maker-zip": "7.8.1",
+    "@electron-forge/plugin-webpack": "7.4.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "css-loader": "7.1.4",
+    "electron": "41.0.3",
+    "fork-ts-checker-webpack-plugin": "9.1.0",
+    "node-loader": "2.0.0",
+    "sharp": "^0.34.5",
+    "style-loader": "4.0.0",
+    "ts-loader": "9.5.4",
+    "typescript": "5.9.3",
+    "webpack": "5.105.4"
+  }
+}
