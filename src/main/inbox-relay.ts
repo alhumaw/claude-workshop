@@ -130,6 +130,7 @@ export class InboxRelay {
 
     const newLines = lines.slice(prevCount);
     this.deliveredCounts.set(inboxPath, lines.length);
+    console.log(`[Workshop:relay] ${session.teamAgentName}: ${newLines.length} new msg(s), prevCount=${prevCount}, total=${lines.length}`);
 
     for (const line of newLines) {
       let msg: InboxMessage;
@@ -147,9 +148,9 @@ export class InboxRelay {
       const managed = this.sessionManager.getSession(session.id);
       if (!managed || managed.info.status === 'exited') continue;
 
-      const status = parseStatus(managed.buffer);
-      // Deliver when not actively generating. 'thinking' status is often
-      // a false positive from the idle timer, so deliver through it.
+      const status = parseStatus(managed.buffer, managed.info.lastActivity);
+      console.log(`[Workshop:relay] Delivering to ${session.teamAgentName} (status=${status}): from=${msg.from}`);
+      // Deliver when not actively generating
       if (status !== 'generating') {
         this.sessionManager.injectPrompt(session.id, formatted, 0);
         await new Promise((resolve) => setTimeout(resolve, 2000));
