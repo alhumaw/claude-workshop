@@ -2,23 +2,29 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { homedir } from 'os';
-import { SessionInfo } from '../shared/types';
+import { SessionInfo, TeamInfo } from '../shared/types';
 
 const DATA_DIR = path.join(homedir(), '.agentmux');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 
+interface PersistedSession {
+  name: string;
+  cwd: string;
+  avatarSeed: string;
+  claudeSessionId: string;
+  contextPercent: number;
+  cost: string;
+  model: string;
+  branch: string;
+  teamId?: string;
+  teamRole?: 'lead' | 'teammate';
+  teamAgentName?: string;
+}
+
 interface PersistedState {
-  version: 1;
-  sessions: Array<{
-    name: string;
-    cwd: string;
-    avatarSeed: string;
-    claudeSessionId: string;
-    contextPercent: number;
-    cost: string;
-    model: string;
-    branch: string;
-  }>;
+  version: 1 | 2;
+  sessions: PersistedSession[];
+  teams?: TeamInfo[];
   activeSessionIndex: number;
 }
 
@@ -28,14 +34,18 @@ async function ensureDir(): Promise<void> {
   }
 }
 
-export async function saveSessions(sessions: SessionInfo[], activeSessionId: string | null): Promise<void> {
+export async function saveSessions(
+  sessions: SessionInfo[],
+  teams: TeamInfo[],
+  activeSessionId: string | null,
+): Promise<void> {
   await ensureDir();
   const activeIndex = activeSessionId
     ? sessions.findIndex((s) => s.id === activeSessionId)
     : 0;
 
   const state: PersistedState = {
-    version: 1,
+    version: 2,
     sessions: sessions
       .filter((s) => s.status !== 'exited')
       .map((s) => ({
@@ -47,7 +57,11 @@ export async function saveSessions(sessions: SessionInfo[], activeSessionId: str
         cost: s.cost,
         model: s.model,
         branch: s.branch,
+        teamId: s.teamId,
+        teamRole: s.teamRole,
+        teamAgentName: s.teamAgentName,
       })),
+    teams,
     activeSessionIndex: Math.max(0, activeIndex),
   };
 
@@ -58,7 +72,9 @@ export async function loadSessions(): Promise<PersistedState | null> {
   try {
     const data = await readFile(SESSIONS_FILE, 'utf-8');
     const state = JSON.parse(data) as PersistedState;
-    if (state.version !== 1) return null;
+    // Support both v1 (no teams) and v2 (with teams)
+    if (state.version !== 1 && state.version !== 2) return null;
+    if (!state.teams) state.teams = [];
     return state;
   } catch {
     return null;
@@ -67,6 +83,6 @@ export async function loadSessions(): Promise<PersistedState | null> {
 
 export async function clearSessions(): Promise<void> {
   try {
-    await writeFile(SESSIONS_FILE, JSON.stringify({ version: 1, sessions: [], activeSessionIndex: 0 }));
+    await writeFile(SESSIONS_FILE, JSON.stringify({ version: 2, sessions: [], teams: [], activeSessionIndex: 0 }));
   } catch {}
 }

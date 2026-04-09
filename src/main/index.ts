@@ -3,6 +3,8 @@ import path from 'path';
 import { SessionManager } from './session-manager';
 import { ShellTerminal } from './shell-terminal';
 import { registerIpcHandlers } from './ipc-handlers';
+import { InboxRelay } from './inbox-relay';
+import { TeamManager } from './team-manager';
 import { IPC } from '../shared/types';
 import { saveSessions, loadSessions, clearSessions } from './persistence';
 
@@ -123,14 +125,37 @@ app.whenReady().then(async () => {
   createWindow();
   registerShortcuts();
 
+  // Start inbox relay for team message delivery
+  const inboxRelay = new InboxRelay(sessionManager);
+  inboxRelay.start(3000);
+
   // Restore persisted sessions — spawn PTY processes now, but wait
   // until the renderer finishes loading before sending IPC
   const savedState = await loadSessions();
   const restoredSessions: import('../shared/types').SessionInfo[] = [];
+  const restoredTeams: import('../shared/types').TeamInfo[] = [];
 
-  if (savedState && savedState.sessions.length > 0) {
+  if (savedState) {
+    // Restore teams to SessionManager
+    for (const team of savedState.teams ?? []) {
+      sessionManager.registerTeam(team);
+      restoredTeams.push(team);
+    }
+
+    // Restore sessions
     for (const saved of savedState.sessions) {
-      const info = sessionManager.spawn(saved.name, saved.cwd, { resumeSessionId: saved.claudeSessionId }, saved.avatarSeed);
+      const info = sessionManager.spawn(saved.name, saved.cwd, {
+        resumeSessionId: saved.claudeSessionId,
+        model: saved.model || undefined,
+        teamName: saved.teamId || undefined,
+      }, saved.avatarSeed);
+      info.cost = saved.cost;
+      info.model = saved.model;
+      info.branch = saved.branch;
+      info.contextPercent = saved.contextPercent;
+      info.teamId = saved.teamId;
+      info.teamRole = saved.teamRole;
+      info.teamAgentName = saved.teamAgentName;
 
       // Clear the ring buffer after a short delay so Claude's startup
       // spinner output doesn't make parseStatus return 'thinking'.
@@ -145,12 +170,28 @@ app.whenReady().then(async () => {
 
       restoredSessions.push(info);
     }
+
+    // Re-create inbox files for team sessions so the relay can poll them
+    const teamMgr = new TeamManager();
+    const teamCwds = new Map<string, string>(); // teamId → leadCwd
+    for (const s of restoredSessions) {
+      if (s.teamId && s.teamRole === 'lead') teamCwds.set(s.teamId, s.cwd);
+    }
+    for (const s of restoredSessions) {
+      if (s.teamId && s.teamAgentName) {
+        const leadCwd = teamCwds.get(s.teamId) ?? s.cwd;
+        await teamMgr.createInbox(leadCwd, s.teamId, s.teamAgentName);
+      }
+    }
     await clearSessions();
   }
 
-  // Once the renderer is ready, push restored sessions so the UI picks them up
-  if (mainWindow && restoredSessions.length > 0) {
+  // Once the renderer is ready, push restored sessions and teams
+  if (mainWindow && (restoredSessions.length > 0 || restoredTeams.length > 0)) {
     mainWindow.webContents.once('did-finish-load', () => {
+      for (const team of restoredTeams) {
+        mainWindow!.webContents.send('team:restored', team);
+      }
       for (const info of restoredSessions) {
         mainWindow!.webContents.send('session:restored', info);
       }
@@ -176,8 +217,9 @@ app.on('before-quit', (event) => {
   isQuitting = true;
 
   const sessions = sessionManager.getAllStatus();
+  const teams = sessionManager.getAllTeams();
   Promise.all([
-    saveSessions(sessions, null),
+    saveSessions(sessions, teams, null),
   ]).finally(() => {
     globalShortcut.unregisterAll();
     shellTerminal.killAll();

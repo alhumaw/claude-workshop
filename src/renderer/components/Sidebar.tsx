@@ -5,27 +5,46 @@ import { AgentPopover } from './AgentPopover';
 import { ToolkitPanel } from './ToolkitPanel';
 import { SettingsModal } from './SettingsModal';
 import { HelpModal } from './HelpModal';
+import { TeamSection } from './TeamSection';
+import { AddTeamMemberModal } from './AddTeamMemberModal';
 
 interface Props {
   onNewSession: () => void;
+  onNewTeam: () => void;
 }
 
-export function Sidebar({ onNewSession }: Props) {
+export function Sidebar({ onNewSession, onNewTeam }: Props) {
   const sessions = useSessionStore((s) => s.sessions);
+  const teams = useSessionStore((s) => s.teams);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActive = useSessionStore((s) => s.setActiveSession);
   const removeSession = useSessionStore((s) => s.removeSession);
   const reorderSessions = useSessionStore((s) => s.reorderSessions);
   const renameSession = useSessionStore((s) => s.renameSession);
   const updateAvatarSeed = useSessionStore((s) => s.updateAvatarSeed);
+  const toggleTeamCollapsed = useSessionStore((s) => s.toggleTeamCollapsed);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [addMemberTeamId, setAddMemberTeamId] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Drag reorder state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Compute grouped data
+  const standaloneSessions = sessions.filter((s) => !s.teamId);
+  const teamGroups = teams.map((team) => ({
+    team,
+    sessions: sessions.filter((s) => s.teamId === team.id),
+  }));
+
+  // Get default cwd for add-member modal
+  const addMemberTeam = addMemberTeamId ? teams.find((t) => t.id === addMemberTeamId) : null;
+  const addMemberDefaultCwd = addMemberTeam
+    ? sessions.find((s) => s.teamId === addMemberTeam.id && s.teamRole === 'lead')?.cwd ?? ''
+    : '';
 
   const handleContextMenu = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
@@ -50,9 +69,21 @@ export function Sidebar({ onNewSession }: Props) {
         case 'rename':
           setRenamingId(sessionId);
           break;
+        case 'remove-from-team': {
+          // Untag the session from the team (keep the session running)
+          const session = sessions.find((s) => s.id === sessionId);
+          if (session) {
+            // Trigger a store update that clears team fields
+            useSessionStore.getState().removeSession(sessionId);
+            // Re-add as standalone (without team fields)
+            const { teamId, teamRole, teamAgentName, ...standalone } = session;
+            useSessionStore.getState().addSession(standalone);
+          }
+          break;
+        }
       }
     });
-  }, [setActive, handleKillSession]);
+  }, [setActive, handleKillSession, sessions]);
 
   const renamingSession = renamingId ? sessions.find((s) => s.id === renamingId) : null;
 
@@ -125,6 +156,26 @@ export function Sidebar({ onNewSession }: Props) {
             ⚙
           </button>
           <button
+            onClick={onNewTeam}
+            className="titlebar-no-drag"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: 11,
+              cursor: 'pointer',
+              padding: '2px 4px',
+              lineHeight: 1,
+              opacity: 0.7,
+              fontWeight: 700,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+            title="Create Team"
+          >
+            T+
+          </button>
+          <button
             onClick={onNewSession}
             className="titlebar-no-drag"
             style={{
@@ -152,7 +203,8 @@ export function Sidebar({ onNewSession }: Props) {
 
       {/* Session list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-        {sessions.map((session, index) => (
+        {/* Standalone sessions */}
+        {standaloneSessions.map((session, index) => (
           <div
             key={session.id}
             ref={(el) => {
@@ -204,6 +256,24 @@ export function Sidebar({ onNewSession }: Props) {
             />
           </div>
         ))}
+
+        {/* Team sections */}
+        {teamGroups.map(({ team, sessions: teamSessions }) => (
+          <TeamSection
+            key={team.id}
+            team={team}
+            sessions={teamSessions}
+            activeSessionId={activeSessionId}
+            onToggleCollapse={() => toggleTeamCollapsed(team.id)}
+            onSelectSession={(id) => setActive(id)}
+            onAddMember={() => setAddMemberTeamId(team.id)}
+            onDeleteTeam={async () => {
+              await window.electronAPI.deleteTeam(team.id);
+              useSessionStore.getState().removeTeam(team.id);
+            }}
+            onContextMenu={handleContextMenu}
+          />
+        ))}
       </div>
 
       {/* Toolkit */}
@@ -231,6 +301,15 @@ export function Sidebar({ onNewSession }: Props) {
             updateAvatarSeed(renamingId, seed);
           }}
           onClose={() => setRenamingId(null)}
+        />
+      )}
+
+      {/* Add team member modal */}
+      {addMemberTeamId && (
+        <AddTeamMemberModal
+          teamName={addMemberTeamId}
+          defaultCwd={addMemberDefaultCwd}
+          onClose={() => setAddMemberTeamId(null)}
         />
       )}
 

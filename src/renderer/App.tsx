@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { NewSessionModal } from './components/NewSessionModal';
+import { CreateTeamModal } from './components/CreateTeamModal';
 import { useSessionStore } from './stores/session-store';
 
 declare global {
   interface Window {
     electronAPI: {
-      spawnSession: (name: string, cwd?: string, avatarSeed?: string) => Promise<any>;
+      spawnSession: (name: string, cwd?: string, avatarSeed?: string, model?: string) => Promise<any>;
       killSession: (sessionId: string) => Promise<any>;
       listSessions: () => Promise<any[]>;
       getSessionBuffer: (sessionId: string) => Promise<string>;
@@ -29,24 +30,32 @@ declare global {
       getConfig: () => Promise<any>;
       setConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
       openFolderDialog: () => Promise<string | null>;
+      openFileDialog: () => Promise<string | null>;
       exportToObsidian: (projectDir: string) => Promise<{ ok: boolean; outDir?: string; error?: string }>;
       spawnShell: (cwd?: string) => Promise<{ id: string }>;
       writeShell: (id: string, data: string) => void;
       resizeShell: (id: string, cols: number, rows: number) => void;
       killShell: (id: string) => Promise<{ ok: boolean }>;
       onShellData: (callback: (id: string, data: string) => void) => () => void;
+      createTeam: (params: { teamName: string; description: string; leadConfig: any; teammateConfigs: any[] }) => Promise<{ teamName: string; team: any; members: any[] }>;
+      addTeamMember: (params: { teamName: string; memberConfig: any }) => Promise<any>;
+      deleteTeam: (teamName: string) => Promise<{ ok: boolean }>;
+      listTeams: () => Promise<any[]>;
+      onTeamRestored: (callback: (team: any) => void) => () => void;
     };
   }
 }
 
 export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
   const updateSessions = useSessionStore((s) => s.updateFromStatus);
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActive = useSessionStore((s) => s.setActiveSession);
   const addSession = useSessionStore((s) => s.addSession);
   const removeSession = useSessionStore((s) => s.removeSession);
+  const addTeam = useSessionStore((s) => s.addTeam);
 
   // Status polling
   useEffect(() => {
@@ -56,8 +65,8 @@ export default function App() {
   }, [updateSessions]);
 
   // Create session handler
-  const handleCreate = useCallback(async (name: string, cwd?: string, avatarSeed?: string) => {
-    const info = await window.electronAPI.spawnSession(name, cwd, avatarSeed);
+  const handleCreate = useCallback(async (name: string, cwd?: string, avatarSeed?: string, model?: string) => {
+    const info = await window.electronAPI.spawnSession(name, cwd, avatarSeed, model);
     addSession(info);
   }, [addSession]);
 
@@ -105,13 +114,24 @@ export default function App() {
     });
   }, [addSession]);
 
+  // Handle restored teams from persistence
+  useEffect(() => {
+    return window.electronAPI.onTeamRestored((team) => {
+      addTeam(team);
+    });
+  }, [addTeam]);
+
   return (
     <>
-      <Layout onNewSession={() => setModalOpen(true)} />
+      <Layout onNewSession={() => setModalOpen(true)} onNewTeam={() => setTeamModalOpen(true)} />
       <NewSessionModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreate={handleCreate}
+      />
+      <CreateTeamModal
+        isOpen={teamModalOpen}
+        onClose={() => setTeamModalOpen(false)}
       />
     </>
   );

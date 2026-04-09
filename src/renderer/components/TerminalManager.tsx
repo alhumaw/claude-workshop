@@ -89,10 +89,13 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
 
     // Send Shift+Enter as the modifyOtherKeys sequence so Claude Code
     // treats it as "newline without submit" rather than plain Enter.
+    // Block both keydown and keypress to prevent xterm from sending \r.
     term.attachCustomKeyEventHandler((ev) => {
-      if (ev.type === 'keydown' && ev.key === 'Enter' && ev.shiftKey) {
-        window.electronAPI.writeToTerminal(sessionId, '\x1b[27;2;13~');
-        return false; // prevent xterm from also sending \r
+      if (ev.key === 'Enter' && ev.shiftKey) {
+        if (ev.type === 'keydown') {
+          window.electronAPI.writeToTerminal(sessionId, '\x1b[27;2;13~');
+        }
+        return false; // block both keydown and keypress
       }
       return true;
     });

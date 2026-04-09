@@ -3,8 +3,8 @@ import { IPC } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Session management
-  spawnSession: (name: string, cwd?: string, avatarSeed?: string) =>
-    ipcRenderer.invoke(IPC.SESSION_SPAWN, { name, cwd, avatarSeed }),
+  spawnSession: (name: string, cwd?: string, avatarSeed?: string, model?: string) =>
+    ipcRenderer.invoke(IPC.SESSION_SPAWN, { name, cwd, avatarSeed, model }),
   killSession: (sessionId: string) =>
     ipcRenderer.invoke(IPC.SESSION_KILL, { sessionId }),
   listSessions: () =>
@@ -124,5 +124,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     };
     ipcRenderer.on(IPC.SHELL_DATA, listener);
     return () => ipcRenderer.removeListener(IPC.SHELL_DATA, listener);
+  },
+
+  // File dialog
+  openFileDialog: () =>
+    ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE),
+
+  // Team management
+  createTeam: (params: { teamName: string; description: string; leadConfig: any; teammateConfigs: any[] }) =>
+    ipcRenderer.invoke(IPC.TEAM_CREATE, params),
+  addTeamMember: (params: { teamName: string; memberConfig: any }) =>
+    ipcRenderer.invoke(IPC.TEAM_ADD_MEMBER, params),
+  deleteTeam: (teamName: string) =>
+    ipcRenderer.invoke(IPC.TEAM_DELETE, { teamName }),
+  listTeams: () =>
+    ipcRenderer.invoke(IPC.TEAM_LIST),
+
+  // Team restoration
+  onTeamRestored: (callback: (team: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, team: any) => {
+      callback(team);
+    };
+    ipcRenderer.on('team:restored', listener);
+    return () => ipcRenderer.removeListener('team:restored', listener);
   },
 });

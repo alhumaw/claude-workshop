@@ -29,18 +29,19 @@ const SPINNER_CHARS = new Set([
   '·', '✻', '✽', '✾', '✿', '❀', '❁', '❂', '❃', '❇', '❈', '❉', '❊', '❋',
 ]);
 
-export function parseStatus(buffer: string): SessionInfo['status'] {
+export function parseStatus(buffer: string, lastActivity?: number): SessionInfo['status'] {
   if (!buffer || buffer.length === 0) return 'idle';
   const tail = stripAnsi(buffer.slice(-3000));
   const lastChunk = tail.slice(-300);
+  const trimmed = tail.trimEnd();
+  const tailLines = trimmed.split('\n');
 
   // Check spinner/activity FIRST — these take precedence over an idle prompt
   // that may still be visible a few lines above the spinner.
 
-  // Spinner pattern: ellipsis (…) near the end means spinner is active
-  // e.g. "✳ Ionizing…", "⠋ Thinking…" — Claude uses random fun words
+  // Spinner pattern: ellipsis near the end means spinner is active
+  // e.g. "✳ Ionizing...", "⠋ Thinking..." — Claude uses random fun words
   if (/[\w]+…/.test(lastChunk)) {
-    // Distinguish thinking vs generating by looking for generation keywords
     const GENERATING_KEYWORDS = ['Generating', 'Writing', 'Editing', 'Creating', 'Reading'];
     for (const kw of GENERATING_KEYWORDS) {
       if (lastChunk.includes(kw)) return 'generating';
@@ -48,13 +49,9 @@ export function parseStatus(buffer: string): SessionInfo['status'] {
     return 'thinking';
   }
 
-  // Spinner character in last few lines also indicates activity
-  const lastLines = tail.split('\n').slice(-5);
-  for (const line of lastLines) {
-    for (const ch of line) {
-      if (SPINNER_CHARS.has(ch)) return 'thinking';
-    }
-  }
+  // Tool output markers on last 2 lines
+  const last2Lines = tailLines.slice(-2).join('\n');
+  if (/[⏺⎿]/.test(last2Lines)) return 'generating';
 
   // Active tool output markers (⏺ = tool call, ⎿ = tool result)
   if (/[⏺⎿]/.test(lastChunk)) return 'generating';
@@ -62,11 +59,21 @@ export function parseStatus(buffer: string): SessionInfo['status'] {
   // Check idle — if any of the last 5 lines is a prompt, Claude is idle.
   // Scanning 5 lines handles Claude's "accept edits on" banner which sits
   // below the ❯ prompt and would otherwise hide the idle state.
-  const trimmed = tail.trimEnd();
-  const tailLines = trimmed.split('\n');
   const recentLines = tailLines.slice(-5);
   for (const line of recentLines) {
     if (/[❯>$]\s*$/.test(line.trim())) return 'idle';
+  }
+
+  // Claude Code idle timer: "✱ Baked for 48s", "✦ Sautéed for 36s", etc.
+  for (const line of recentLines) {
+    if (/for\s+\d+[sm]\s*$/.test(line.trim())) return 'idle';
+  }
+
+  // Data-flow check: If PTY has been quiet for 4+ seconds and no idle
+  // signal found, it's likely idle (buffer just doesn't have a visible prompt).
+  if (lastActivity !== undefined) {
+    const silenceMs = Date.now() - lastActivity;
+    if (silenceMs > 4000) return 'idle';
   }
 
   return 'idle';
@@ -105,8 +112,9 @@ export function parseCost(buffer: string): string | null {
 
 export function parseModel(buffer: string): string | null {
   const tail = stripAnsi(buffer.slice(-3000));
-  // "claude-4-6-sonnet" or "claude-4-6-opus" from status line — take last match
-  const claudeMatches = [...tail.matchAll(/claude-[\d]+-[\d]+-\w+/g)];
+  // "claude-4-6-sonnet[1m]" or "claude-4-6-opus" from status line — take last match
+  // The \[1m\] suffix indicates long context mode
+  const claudeMatches = [...tail.matchAll(/claude-[\d]+-[\d]+-\w+(?:\[\dm\])?/g)];
   if (claudeMatches.length > 0) return claudeMatches[claudeMatches.length - 1][0];
   // "Opus 4.6" from welcome banner
   const nameMatches = [...tail.matchAll(/(Opus|Sonnet|Haiku)\s+[\d.]+/g)];

@@ -14,9 +14,10 @@ const SHELL_DEFAULT = 200;
 
 interface Props {
   onNewSession: () => void;
+  onNewTeam: () => void;
 }
 
-export function Layout({ onNewSession }: Props) {
+export function Layout({ onNewSession, onNewTeam }: Props) {
   // Sidebar drag state
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const dragging = useRef(false);
@@ -207,7 +208,7 @@ export function Layout({ onNewSession }: Props) {
             width: sidebarWidth,
           }}
         >
-          <Sidebar onNewSession={onNewSession} />
+          <Sidebar onNewSession={onNewSession} onNewTeam={onNewTeam} />
         </div>
       </div>
       <TabBar onNewSession={onNewSession} onToggleShell={() => setShellVisible((v) => !v)} shellVisible={shellVisible} />
