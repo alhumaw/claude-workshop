@@ -40,6 +40,22 @@
 + Added: __Git branch from filesystem__ — branch name is now read directly via `git rev-parse` in the session's working directory instead of parsing pipe-delimited text from the terminal buffer. Updates live when the agent switches branches.
     - `src/main/session-manager.ts`
 
++ Added: __Agent teams__ — create teams with a lead and teammates that communicate via inbox files. Lead gets explicit per-teammate inbox commands. Teammates show grouped in the sidebar.
+    - `src/main/team-manager.ts` _(new)_
+    - `src/main/inbox-relay.ts` _(new)_
+    - `src/renderer/components/CreateTeamModal.tsx` _(new)_
+    - `src/renderer/components/AddTeamMemberModal.tsx` _(new)_
+    - `src/renderer/components/TeamSection.tsx` _(new)_
+    - `src/main/session-manager.ts`
+    - `src/main/ipc-handlers.ts`
+    - `src/renderer/components/Sidebar.tsx`
+    - `src/renderer/stores/session-store.ts`
+    - `src/shared/types.ts`
+
++ Added: __MemPalace integration (optional)__ — when [MemPalace](https://github.com/milla-jovovich/mempalace) is installed, team agents automatically get 19 MCP tools for shared persistent memory. Workshop auto-detects `pipx`, `uv tool`, or global installs and configures everything on team creation. Mempalace references in agent prompts are conditional — no errors if not installed.
+    - `src/main/team-manager.ts`
+    - `src/main/session-manager.ts`
+
 ## Issues resolved
 + Fixed: __ANSI stripping drops all content__ — Claude Code uses `\x1b[1C` (cursor forward) instead of literal spaces between words and `\r\r\n` (double CR + LF) line endings. The `stripAnsi` function now replaces cursor-forward sequences with spaces and strips trailing carriage returns correctly.
     - `src/main/parsers/index.ts`
@@ -75,6 +91,9 @@
     - `src/main/session-manager.ts`
 
 + Fixed: __Branch field shows non-branch text__ — `parseBranch` matched any `| text |` in the terminal buffer, picking up table cells, model names, and other pipe-delimited output. Replaced with direct `git rev-parse` from the session's working directory.
+    - `src/main/session-manager.ts`
+
++ Fixed: __Team lead can't message teammates__ — the lead's injected prompt used a generic `{name}` placeholder for inbox paths. Replaced with explicit per-teammate commands so the lead knows exactly how to reach each agent.
     - `src/main/session-manager.ts`
 
 ## Other
