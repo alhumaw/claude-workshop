@@ -3,9 +3,11 @@ import { useSessionStore } from '../stores/session-store';
 
 interface Props {
   onNewSession: () => void;
+  onToggleShell?: () => void;
+  shellVisible?: boolean;
 }
 
-export function TabBar({ onNewSession }: Props) {
+export function TabBar({ onNewSession, onToggleShell, shellVisible }: Props) {
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActive = useSessionStore((s) => s.setActiveSession);
@@ -27,6 +29,29 @@ export function TabBar({ onNewSession }: Props) {
       overflowX: 'auto',
       overflowY: 'hidden',
     }}>
+      {/* Shell toggle */}
+      {onToggleShell && (
+        <button
+          onClick={onToggleShell}
+          style={{
+            background: 'none',
+            border: 'none',
+            borderRight: '1px solid var(--border-default)',
+            color: shellVisible ? 'var(--text-primary)' : 'var(--text-muted)',
+            fontSize: 12,
+            cursor: 'pointer',
+            padding: '0 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            whiteSpace: 'nowrap',
+            opacity: shellVisible ? 1 : 0.6,
+          }}
+          title="Toggle shell panel (Cmd+`)"
+        >
+          {'>'}_  Terminal
+        </button>
+      )}
       {sessions.map((session) => (
         <div
           key={session.id}

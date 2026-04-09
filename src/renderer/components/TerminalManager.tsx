@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -33,6 +33,7 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const registerCallback = useSessionStore((s) => s.registerTerminalCallback);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -61,7 +62,7 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
         brightCyan: '#67e8f9',
         brightWhite: '#ffffff',
       },
-      fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+      fontFamily: "'MesloLGS NF', 'Hack Nerd Font', 'FiraCode Nerd Font', 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
       fontSize: 13,
       lineHeight: 1.2,
       cursorBlink: true,
@@ -76,10 +77,15 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
     // container before the browser has finished its first layout pass,
     // resulting in a terminal that's too small until the user resizes.
     // Two rAFs are enough to outlast React's commit + browser layout.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    const fitTerm = () => {
       fit.fit();
       window.electronAPI.resizeTerminal(sessionId, term.cols, term.rows);
-    }));
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(fitTerm));
+
+    // Re-fit after fonts load — Nerd Fonts change cell width measurements
+    document.fonts.ready.then(fitTerm);
 
     // Send Shift+Enter as the modifyOtherKeys sequence so Claude Code
     // treats it as "newline without submit" rather than plain Enter.
@@ -95,6 +101,13 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
     fitRef.current = fit;
     terminalRegistry.set(sessionId, term);
 
+    // Track whether user has scrolled away from bottom
+    term.onScroll(() => {
+      const buf = term.buffer.active;
+      const atBottom = buf.viewportY >= buf.baseY;
+      setShowScrollBtn(!atBottom);
+    });
+
     // Send user input to PTY
     term.onData((data) => {
       window.electronAPI.writeToTerminal(sessionId, data);
@@ -108,14 +121,17 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
     // drag (each resizeTerminal IPC call triggers a full terminal repaint).
     // Guard against display:none giving 0 dimensions (~1 col reflow).
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    let fitting = false;
     const observer = new ResizeObserver(() => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || fitting) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
       if (width < 50 || height < 50) return;
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        fit.fit();
-        window.electronAPI.resizeTerminal(sessionId, term.cols, term.rows);
+        fitting = true;
+        fitTerm();
+        term.scrollToBottom();
+        requestAnimationFrame(() => { fitting = false; });
       }, 60);
     });
     observer.observe(containerRef.current);
@@ -160,6 +176,13 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
     // Listen for PTY data
     const unsub = registerCallback(sessionId, (data: string) => {
       term.write(data);
+      // Keep viewport pinned to bottom when new data arrives,
+      // unless the user has scrolled up intentionally.
+      const buf = term.buffer.active;
+      const viewportAtBottom = buf.viewportY >= buf.baseY - 1;
+      if (viewportAtBottom) {
+        term.scrollToBottom();
+      }
     });
 
     // Replay buffered output that arrived before we mounted
@@ -177,13 +200,15 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
     };
   }, [sessionId]);
 
-  // Re-fit when visibility changes and sync size to PTY
+  // Re-fit and focus when visibility changes and sync size to PTY
   useEffect(() => {
     if (!visible) return;
     const doFit = () => {
       if (!fitRef.current || !termRef.current) return;
       fitRef.current.fit();
       window.electronAPI.resizeTerminal(sessionId, termRef.current.cols, termRef.current.rows);
+      const t = termRef.current;
+      requestAnimationFrame(() => { t.scrollToBottom(); t.focus(); });
     };
     // Two rAFs to outlast React commit + browser layout; 150ms timeout as
     // belt-and-suspenders for absolute-positioned containers that need an
@@ -193,15 +218,50 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
     return () => clearTimeout(t);
   }, [visible, sessionId]);
 
+  const scrollToBottom = useCallback(() => {
+    termRef.current?.scrollToBottom();
+    setShowScrollBtn(false);
+  }, []);
+
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: visible ? 'block' : 'none',
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: visible ? 'block' : 'none',
+        }}
+      />
+      {visible && showScrollBtn && (
+        <button
+          onClick={scrollToBottom}
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            right: 12,
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            background: 'rgba(42, 42, 42, 0.85)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-secondary)',
+            fontSize: 16,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20,
+            transition: 'opacity 0.15s ease',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-active)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+          title="Scroll to bottom"
+        >
+          ↓
+        </button>
+      )}
+    </div>
   );
 }
 

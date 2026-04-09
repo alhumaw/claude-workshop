@@ -1,7 +1,8 @@
 import * as pty from 'node-pty';
 import { SessionInfo, IPC } from '../shared/types';
-import { parseStatus, parseContext, parseContextSize, parseCost, parseModel, parseBranch } from './parsers';
+import { parseStatus, parseContext, parseContextSize, parseCost, parseModel, parseAwaitingApproval } from './parsers';
 import { randomBytes, randomUUID } from 'crypto';
+import { execFileSync } from 'child_process';
 import { BrowserWindow, ipcMain } from 'electron';
 
 interface ManagedSession {
@@ -82,6 +83,7 @@ export class SessionManager {
       cwd: workingDir,
       avatarSeed: avatarSeed ?? randomBytes(4).toString('hex'),
       claudeSessionId,
+      awaitingApproval: false,
     };
 
     const managed: ManagedSession = {
@@ -115,6 +117,11 @@ export class SessionManager {
   write(sessionId: string, data: string): void {
     const session = this.sessions.get(sessionId);
     if (session && session.info.status !== 'exited') {
+      // Detect /clear command — assign a new session ID so the next
+      // restore starts fresh instead of resuming pre-clear history.
+      if (/^\/clear\r?$/.test(data.trim())) {
+        session.info.claudeSessionId = randomUUID();
+      }
       try { session.pty.write(data); } catch {}
     }
   }
@@ -162,10 +169,32 @@ export class SessionManager {
       session.info.contextSize = parseContextSize(buffer) ?? session.info.contextSize;
       session.info.cost = parseCost(buffer) ?? session.info.cost;
       session.info.model = parseModel(buffer) ?? session.info.model;
-      session.info.branch = parseBranch(buffer) ?? session.info.branch;
+      // Get branch directly from git instead of parsing terminal output
+      try {
+        const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+          cwd: session.info.cwd,
+          timeout: 2000,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'ignore'],
+        }).trim();
+        if (branch && branch !== 'HEAD') session.info.branch = branch;
+      } catch {
+        // Not a git repo or git not available — leave branch as-is
+      }
+      session.info.awaitingApproval = parseAwaitingApproval(buffer);
       results.push({ ...session.info });
     }
     return results;
+  }
+
+  rename(sessionId: string, name: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) session.info.name = name;
+  }
+
+  updateAvatarSeed(sessionId: string, seed: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) session.info.avatarSeed = seed;
   }
 
   getSession(sessionId: string): ManagedSession | undefined {

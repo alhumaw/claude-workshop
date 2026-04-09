@@ -9,6 +9,7 @@ interface SessionStore {
   setActiveSession: (id: string) => void;
   addSession: (session: SessionInfo) => void;
   removeSession: (id: string) => void;
+  reorderSessions: (fromIndex: number, toIndex: number) => void;
   renameSession: (id: string, name: string) => void;
   updateAvatarSeed: (id: string, seed: string) => void;
   updateFromStatus: (sessions: SessionInfo[]) => void;
@@ -41,15 +42,27 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       return { sessions, activeSessionId };
     }),
 
-  renameSession: (id, name) =>
+  reorderSessions: (fromIndex, toIndex) =>
+    set((state) => {
+      const sessions = [...state.sessions];
+      const [moved] = sessions.splice(fromIndex, 1);
+      sessions.splice(toIndex, 0, moved);
+      return { sessions };
+    }),
+
+  renameSession: (id, name) => {
+    window.electronAPI.renameSession(id, name);
     set((state) => ({
       sessions: state.sessions.map((s) => s.id === id ? { ...s, name } : s),
-    })),
+    }));
+  },
 
-  updateAvatarSeed: (id, seed) =>
+  updateAvatarSeed: (id, seed) => {
+    window.electronAPI.updateAvatarSeed(id, seed);
     set((state) => ({
       sessions: state.sessions.map((s) => s.id === id ? { ...s, avatarSeed: seed } : s),
-    })),
+    }));
+  },
 
   updateFromStatus: (incoming) =>
     set((state) => {

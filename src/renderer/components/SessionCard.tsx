@@ -15,7 +15,9 @@ const STATUS_CONFIG = {
   generating: { color: 'var(--status-generating)', label: 'Generating' },
   thinking: { color: 'var(--status-thinking)', label: 'Thinking' },
   exited: { color: 'var(--status-exited)', label: 'Exited' },
-};
+} as const;
+
+const APPROVAL_COLOR = 'var(--status-approval)';
 
 function timeSince(ts: number): string {
   const diff = Date.now() - ts;
@@ -43,6 +45,7 @@ function AnimatedDots() {
 export function SessionCard({ session, isActive, onClick, onContextMenu }: Props) {
   const st = STATUS_CONFIG[session.status];
   const isWorking = session.status === 'generating' || session.status === 'thinking';
+  const isAwaiting = session.awaitingApproval;
 
   return (
     <div
@@ -53,26 +56,32 @@ export function SessionCard({ session, isActive, onClick, onContextMenu }: Props
         marginBottom: 6,
         borderRadius: 8,
         background: isActive ? 'var(--bg-card)' : 'transparent',
-        border: isWorking
-          ? `1px solid ${st.color}`
+        border: isAwaiting
+          ? `1px solid ${APPROVAL_COLOR}`
           : isActive
-            ? '1px solid var(--border-active)'
-            : '1px solid transparent',
+            ? '1px solid rgba(255, 255, 255, 0.4)'
+            : isWorking
+              ? `1px solid ${st.color}`
+              : '1px solid transparent',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
-        boxShadow: isWorking ? `0 0 8px 1px ${st.color}33` : 'none',
+        boxShadow: isAwaiting
+          ? undefined  // handled by animation
+          : isActive ? '0 0 10px 2px rgba(255, 255, 255, 0.15)'
+          : isWorking ? `0 0 8px 1px ${st.color}33` : 'none',
+        animation: isAwaiting ? 'approvalGlow 1.5s ease-in-out infinite' : 'none',
         display: 'flex',
         alignItems: 'center',
         gap: 10,
       }}
       onMouseEnter={(e) => {
-        if (!isActive && !isWorking) {
+        if (!isActive && !isWorking && !isAwaiting) {
           e.currentTarget.style.background = 'var(--bg-card-hover)';
           e.currentTarget.style.borderColor = 'var(--border-default)';
         }
       }}
       onMouseLeave={(e) => {
-        if (!isActive && !isWorking) {
+        if (!isActive && !isWorking && !isAwaiting) {
           e.currentTarget.style.background = 'transparent';
           e.currentTarget.style.borderColor = 'transparent';
         }
@@ -87,10 +96,12 @@ export function SessionCard({ session, isActive, onClick, onContextMenu }: Props
           <span style={{
             fontWeight: 600,
             fontSize: 13,
-            flexShrink: 0,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            minWidth: 0,
+            maxWidth: '50%',
+            flexShrink: 1,
           }}>
             {session.name}
           </span>
@@ -102,12 +113,12 @@ export function SessionCard({ session, isActive, onClick, onContextMenu }: Props
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               minWidth: 0,
-              flexShrink: 1,
+              flexShrink: 2,
             }}>
               &#x2387; {session.branch}
             </span>
           )}
-          <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+          <div style={{ marginLeft: 'auto', flexShrink: 0, width: 80 }}>
             <ContextBar percent={session.contextPercent} />
           </div>
         </div>
@@ -122,16 +133,16 @@ export function SessionCard({ session, isActive, onClick, onContextMenu }: Props
           whiteSpace: 'nowrap',
           overflow: 'hidden',
         }}>
-          <span style={{ color: st.color, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <span style={{ color: isAwaiting ? APPROVAL_COLOR : st.color, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <span style={{
               width: 7,
               height: 7,
               borderRadius: '50%',
-              background: st.color,
+              background: isAwaiting ? APPROVAL_COLOR : st.color,
               display: 'inline-block',
               flexShrink: 0,
             }} />
-            {st.label}{isWorking && <AnimatedDots />}
+            {isAwaiting ? 'Waiting' : st.label}{isWorking && <AnimatedDots />}
           </span>
           <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
             {timeSince(session.lastActivity)}

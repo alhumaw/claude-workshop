@@ -15,12 +15,17 @@ export function Sidebar({ onNewSession }: Props) {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActive = useSessionStore((s) => s.setActiveSession);
   const removeSession = useSessionStore((s) => s.removeSession);
+  const reorderSessions = useSessionStore((s) => s.reorderSessions);
   const renameSession = useSessionStore((s) => s.renameSession);
   const updateAvatarSeed = useSessionStore((s) => s.updateAvatarSeed);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Drag reorder state
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
@@ -80,9 +85,13 @@ export function Sidebar({ onNewSession }: Props) {
               background: 'none',
               border: 'none',
               color: 'var(--text-secondary)',
-              fontSize: 12,
+              fontSize: 14,
               cursor: 'pointer',
-              padding: '2px 4px',
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               lineHeight: 1,
               opacity: 0.7,
             }}
@@ -99,9 +108,13 @@ export function Sidebar({ onNewSession }: Props) {
               background: 'none',
               border: 'none',
               color: 'var(--text-secondary)',
-              fontSize: 15,
+              fontSize: 14,
               cursor: 'pointer',
-              padding: '2px 4px',
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               lineHeight: 1,
               opacity: 0.7,
             }}
@@ -120,8 +133,17 @@ export function Sidebar({ onNewSession }: Props) {
               color: 'var(--text-secondary)',
               fontSize: 18,
               cursor: 'pointer',
-              padding: '0 4px',
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
+              opacity: 0.7,
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+            title="New session"
           >
             +
           </button>
@@ -130,12 +152,48 @@ export function Sidebar({ onNewSession }: Props) {
 
       {/* Session list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-        {sessions.map((session) => (
+        {sessions.map((session, index) => (
           <div
             key={session.id}
             ref={(el) => {
               if (el) cardRefs.current.set(session.id, el);
               else cardRefs.current.delete(session.id);
+            }}
+            draggable
+            onDragStart={(e) => {
+              setDragIndex(index);
+              e.dataTransfer.effectAllowed = 'move';
+              // Make the drag image semi-transparent
+              if (e.currentTarget) {
+                e.dataTransfer.setDragImage(e.currentTarget, 0, 0);
+              }
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDragOverIndex(index);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragIndex !== null && dragIndex !== index) {
+                reorderSessions(dragIndex, index);
+              }
+              setDragIndex(null);
+              setDragOverIndex(null);
+            }}
+            onDragEnd={() => {
+              setDragIndex(null);
+              setDragOverIndex(null);
+            }}
+            style={{
+              opacity: dragIndex === index ? 0.4 : 1,
+              borderTop: dragOverIndex === index && dragIndex !== null && dragIndex > index
+                ? '2px solid var(--accent)'
+                : '2px solid transparent',
+              borderBottom: dragOverIndex === index && dragIndex !== null && dragIndex < index
+                ? '2px solid var(--accent)'
+                : '2px solid transparent',
+              transition: 'opacity 0.15s ease, border-color 0.15s ease',
             }}
           >
             <SessionCard

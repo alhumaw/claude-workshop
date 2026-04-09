@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow, Menu, dialog } from 'electron';
 import { SessionManager } from './session-manager';
+import { ShellTerminal } from './shell-terminal';
 import { IPC, AppConfig } from '../shared/types';
 import { writeFile, unlink, stat } from 'fs/promises';
 import { homedir } from 'os';
@@ -10,7 +11,8 @@ import { exportToObsidian } from './obsidian-exporter';
 
 export function registerIpcHandlers(
   sessionManager: SessionManager,
-  getWindow: () => BrowserWindow | null
+  getWindow: () => BrowserWindow | null,
+  shellTerminal: ShellTerminal
 ): void {
   // Spawn a new session
   ipcMain.handle(IPC.SESSION_SPAWN, (_event, { name, cwd, avatarSeed }) => {
@@ -129,6 +131,16 @@ export function registerIpcHandlers(
     return newInfo;
   });
 
+  // Rename a session (syncs renderer → main for persistence)
+  ipcMain.on(IPC.SESSION_RENAME, (_event, { sessionId, name }: { sessionId: string; name: string }) => {
+    sessionManager.rename(sessionId, name);
+  });
+
+  // Update avatar seed (syncs renderer → main for persistence)
+  ipcMain.on(IPC.SESSION_UPDATE_AVATAR, (_event, { sessionId, avatarSeed }: { sessionId: string; avatarSeed: string }) => {
+    sessionManager.updateAvatarSeed(sessionId, avatarSeed);
+  });
+
   // Validate directory exists
   ipcMain.handle('validate:directory', async (_event, { path: rawPath }: { path: string }) => {
     const expanded = rawPath.startsWith('~/')
@@ -199,5 +211,28 @@ export function registerIpcHandlers(
     } catch (err: any) {
       return { ok: false, error: err.message ?? 'Export failed' };
     }
+  });
+
+  // Shell terminal
+  ipcMain.handle(IPC.SHELL_SPAWN, (_event, { cwd }: { cwd?: string }) => {
+    const id = shellTerminal.spawn(cwd);
+    shellTerminal.setOnData(id, (data) => {
+      const win = getWindow();
+      if (win) win.webContents.send(IPC.SHELL_DATA, { id, data });
+    });
+    return { id };
+  });
+
+  ipcMain.on(IPC.SHELL_WRITE, (_event, { id, data }: { id: string; data: string }) => {
+    shellTerminal.write(id, data);
+  });
+
+  ipcMain.on(IPC.SHELL_RESIZE, (_event, { id, cols, rows }: { id: string; cols: number; rows: number }) => {
+    shellTerminal.resize(id, cols, rows);
+  });
+
+  ipcMain.handle(IPC.SHELL_KILL, (_event, { id }: { id: string }) => {
+    shellTerminal.kill(id);
+    return { ok: true };
   });
 }

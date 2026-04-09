@@ -20,6 +20,8 @@ declare global {
       executeToolkitAction: (sessionId: string, command: string) => Promise<any>;
       handoffSession: (sessionId: string) => Promise<{ newSessionId: string; handoffText: string; sessionInfo: any }>;
       freshSession: (sessionId: string) => Promise<any>;
+      renameSession: (sessionId: string, name: string) => void;
+      updateAvatarSeed: (sessionId: string, avatarSeed: string) => void;
       onTerminalTextRequest: (callback: (sessionId: string) => string) => () => void;
       onShortcut: (channel: string, callback: (...args: any[]) => void) => () => void;
       onSessionRestored: (callback: (session: any) => void) => () => void;
@@ -28,6 +30,11 @@ declare global {
       setConfig: (config: any) => Promise<{ ok: boolean; error?: string }>;
       openFolderDialog: () => Promise<string | null>;
       exportToObsidian: (projectDir: string) => Promise<{ ok: boolean; outDir?: string; error?: string }>;
+      spawnShell: (cwd?: string) => Promise<{ id: string }>;
+      writeShell: (id: string, data: string) => void;
+      resizeShell: (id: string, cols: number, rows: number) => void;
+      killShell: (id: string) => Promise<{ ok: boolean }>;
+      onShellData: (callback: (id: string, data: string) => void) => () => void;
     };
   }
 }

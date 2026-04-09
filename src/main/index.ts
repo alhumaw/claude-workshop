@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage } from 'electron';
 import path from 'path';
 import { SessionManager } from './session-manager';
+import { ShellTerminal } from './shell-terminal';
 import { registerIpcHandlers } from './ipc-handlers';
 import { IPC } from '../shared/types';
 import { saveSessions, loadSessions, clearSessions } from './persistence';
@@ -12,6 +13,7 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 let mainWindow: BrowserWindow | null = null;
 let sessionManager: SessionManager;
+let shellTerminal: ShellTerminal;
 
 const createWindow = (): void => {
   mainWindow = new BrowserWindow({
@@ -71,6 +73,13 @@ function registerShortcuts() {
       mainWindow.webContents.send('shortcut:next-session');
     }
   });
+
+  // Cmd+` — toggle shell panel
+  globalShortcut.register('CommandOrControl+`', () => {
+    if (mainWindow) {
+      mainWindow.webContents.send('shortcut:toggle-shell');
+    }
+  });
 }
 
 app.whenReady().then(async () => {
@@ -109,7 +118,8 @@ app.whenReady().then(async () => {
 
   sessionManager = new SessionManager();
   sessionManager.setWindowGetter(() => mainWindow);
-  registerIpcHandlers(sessionManager, () => mainWindow);
+  shellTerminal = new ShellTerminal();
+  registerIpcHandlers(sessionManager, () => mainWindow, shellTerminal);
   createWindow();
   registerShortcuts();
 
@@ -120,12 +130,7 @@ app.whenReady().then(async () => {
 
   if (savedState && savedState.sessions.length > 0) {
     for (const saved of savedState.sessions) {
-      const info = sessionManager.spawn(saved.name, saved.cwd, { resumeSessionId: saved.claudeSessionId });
-      info.avatarSeed = saved.avatarSeed;
-      info.cost = saved.cost;
-      info.model = saved.model;
-      info.branch = saved.branch;
-      info.contextPercent = saved.contextPercent;
+      const info = sessionManager.spawn(saved.name, saved.cwd, { resumeSessionId: saved.claudeSessionId }, saved.avatarSeed);
 
       // Clear the ring buffer after a short delay so Claude's startup
       // spinner output doesn't make parseStatus return 'thinking'.
@@ -175,6 +180,7 @@ app.on('before-quit', (event) => {
     saveSessions(sessions, null),
   ]).finally(() => {
     globalShortcut.unregisterAll();
+    shellTerminal.killAll();
     sessionManager.killAll();
     app.quit();
   });

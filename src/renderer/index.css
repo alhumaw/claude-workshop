@@ -23,6 +23,12 @@
   --context-bar-low: #4ade80;
   --context-bar-mid: #facc15;
   --context-bar-high: #ef4444;
+  --status-approval: #c084fc;
+}
+
+@keyframes approvalGlow {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(192, 132, 252, 0.3); }
+  50% { box-shadow: 0 0 16px 4px rgba(192, 132, 252, 0.7); }
 }
 
 html, body, #root {

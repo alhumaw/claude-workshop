@@ -57,6 +57,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   freshSession: (sessionId: string) =>
     ipcRenderer.invoke(IPC.TOOLKIT_FRESH_SESSION, { sessionId }),
 
+  // Sync renderer state → main for persistence
+  renameSession: (sessionId: string, name: string) =>
+    ipcRenderer.send(IPC.SESSION_RENAME, { sessionId, name }),
+  updateAvatarSeed: (sessionId: string, avatarSeed: string) =>
+    ipcRenderer.send(IPC.SESSION_UPDATE_AVATAR, { sessionId, avatarSeed }),
+
   // Terminal text extraction — main process asks renderer to serialize
   // the xterm buffer for a session.  The renderer calls getTerminalText
   // handler (set by TerminalManager), and sends the result back.
@@ -102,4 +108,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Obsidian export
   exportToObsidian: (projectDir: string) =>
     ipcRenderer.invoke(IPC.OBSIDIAN_EXPORT, { projectDir }),
+
+  // Shell terminal
+  spawnShell: (cwd?: string) =>
+    ipcRenderer.invoke(IPC.SHELL_SPAWN, { cwd }),
+  writeShell: (id: string, data: string) =>
+    ipcRenderer.send(IPC.SHELL_WRITE, { id, data }),
+  resizeShell: (id: string, cols: number, rows: number) =>
+    ipcRenderer.send(IPC.SHELL_RESIZE, { id, cols, rows }),
+  killShell: (id: string) =>
+    ipcRenderer.invoke(IPC.SHELL_KILL, { id }),
+  onShellData: (callback: (id: string, data: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { id: string; data: string }) => {
+      callback(payload.id, payload.data);
+    };
+    ipcRenderer.on(IPC.SHELL_DATA, listener);
+    return () => ipcRenderer.removeListener(IPC.SHELL_DATA, listener);
+  },
 });
