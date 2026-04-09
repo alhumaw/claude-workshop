@@ -4,12 +4,13 @@ import { AvatarPixels } from './AvatarPixels';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (name: string, cwd?: string, avatarSeed?: string) => void;
+  onCreate: (name: string, cwd?: string, avatarSeed?: string, model?: string) => void;
 }
 
 export function NewSessionModal({ isOpen, onClose, onCreate }: Props) {
   const [name, setName] = useState('');
   const [cwd, setCwd] = useState('');
+  const [model, setModel] = useState('');
   const [avatarSeed, setAvatarSeed] = useState(Math.random().toString(36));
   const [cwdInvalid, setCwdInvalid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,6 +20,7 @@ export function NewSessionModal({ isOpen, onClose, onCreate }: Props) {
     if (isOpen) {
       setName('');
       setCwd('');
+      setModel('');
       setCwdInvalid(false);
       setAvatarSeed(Math.random().toString(36));
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -52,7 +54,7 @@ export function NewSessionModal({ isOpen, onClose, onCreate }: Props) {
       }
     }
 
-    onCreate(name.trim(), trimmedCwd || undefined, avatarSeed);
+    onCreate(name.trim(), trimmedCwd || undefined, avatarSeed, model || undefined);
     onClose();
   };
 
@@ -146,10 +148,36 @@ export function NewSessionModal({ isOpen, onClose, onCreate }: Props) {
               color: 'var(--text-primary)',
               fontSize: 14,
               outline: 'none',
-              marginBottom: 20,
+              marginBottom: 12,
               transition: 'border-color 0.2s',
             }}
           />
+
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+            Model (optional)
+          </label>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 6,
+              color: 'var(--text-primary)',
+              fontSize: 14,
+              outline: 'none',
+              marginBottom: 20,
+            }}
+          >
+            <option value="">Default</option>
+            <option value="claude-4-6-opus">Opus 4.6</option>
+            <option value="claude-4-6-opus[1m]">Opus 4.6 Long Context</option>
+            <option value="sonnet">Sonnet</option>
+            <option value="claude-4-6-sonnet[1m]">Sonnet Long Context</option>
+            <option value="haiku">Haiku</option>
+          </select>
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button

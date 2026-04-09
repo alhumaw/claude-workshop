@@ -10,9 +10,10 @@ const SIDEBAR_DEFAULT = 300;
 
 interface Props {
   onNewSession: () => void;
+  onNewTeam: () => void;
 }
 
-export function Layout({ onNewSession }: Props) {
+export function Layout({ onNewSession, onNewTeam }: Props) {
   // Committed width — only updates on mouseup, triggering one terminal resize
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const dragging = useRef(false);
@@ -109,7 +110,7 @@ export function Layout({ onNewSession }: Props) {
             width: sidebarWidth,
           }}
         >
-          <Sidebar onNewSession={onNewSession} />
+          <Sidebar onNewSession={onNewSession} onNewTeam={onNewTeam} />
         </div>
       </div>
       <TabBar onNewSession={onNewSession} />

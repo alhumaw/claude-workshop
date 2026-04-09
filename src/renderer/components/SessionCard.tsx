@@ -8,6 +8,7 @@ interface Props {
   isActive: boolean;
   onClick: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  isLead?: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -40,7 +41,7 @@ function AnimatedDots() {
   return <span style={{ display: 'inline-block', width: 18, textAlign: 'left' }}>{DOTS[i]}</span>;
 }
 
-export function SessionCard({ session, isActive, onClick, onContextMenu }: Props) {
+export function SessionCard({ session, isActive, onClick, onContextMenu, isLead }: Props) {
   const st = STATUS_CONFIG[session.status];
   const isWorking = session.status === 'generating' || session.status === 'thinking';
 
@@ -91,7 +92,11 @@ export function SessionCard({ session, isActive, onClick, onContextMenu }: Props
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
           }}>
+            {isLead && <span title="Team Lead" style={{ fontSize: 10, color: 'var(--accent)' }}>★</span>}
             {session.name}
           </span>
           {session.branch && (

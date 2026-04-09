@@ -50,6 +50,11 @@ export function TabBar({ onNewSession }: Props) {
             textOverflow: 'ellipsis',
           }}>
             {session.name}
+            {session.teamId && (
+              <span style={{ color: 'var(--text-muted)', fontSize: 10, marginLeft: 4 }}>
+                [{session.teamId}]
+              </span>
+            )}
           </span>
           <span
             onClick={(e) => handleClose(e, session.id)}
