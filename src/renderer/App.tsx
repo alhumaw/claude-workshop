@@ -34,6 +34,10 @@ declare global {
       addTeamMember: (params: { teamName: string; memberConfig: any }) => Promise<any>;
       deleteTeam: (teamName: string) => Promise<{ ok: boolean }>;
       listTeams: () => Promise<any[]>;
+      scanRoles: () => Promise<Array<{ name: string; promptPath: string }>>;
+      saveTeamTemplate: (template: any) => Promise<{ ok: boolean }>;
+      loadTeamTemplates: () => Promise<any[]>;
+      deleteTeamTemplate: (templateId: string) => Promise<{ ok: boolean }>;
       onTeamRestored: (callback: (team: any) => void) => () => void;
     };
   }

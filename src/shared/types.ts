@@ -76,4 +76,8 @@ export const IPC = {
   TEAM_DELETE: 'team:delete',
   TEAM_LIST: 'team:list',
   TEAM_ADD_MEMBER: 'team:add-member',
+  TEAM_SCAN_ROLES: 'team:scan-roles',
+  TEAM_SAVE_TEMPLATE: 'team:save-template',
+  TEAM_LOAD_TEMPLATES: 'team:load-templates',
+  TEAM_DELETE_TEMPLATE: 'team:delete-template',
 } as const;

@@ -450,4 +450,68 @@ export function registerIpcHandlers(
     }
     return configs;
   });
+
+  // Scan ~/.claude/prompts/ for available roles
+  ipcMain.handle(IPC.TEAM_SCAN_ROLES, async () => {
+    const promptsDir = path.join(homedir(), '.claude', 'prompts');
+    try {
+      const { readdir } = require('fs/promises');
+      const entries = await readdir(promptsDir, { withFileTypes: true });
+      const roles: Array<{ name: string; promptPath: string }> = [];
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const promptFile = path.join(promptsDir, entry.name, 'PROMPT.md');
+          if (existsSync(promptFile)) {
+            roles.push({
+              name: entry.name,
+              promptPath: `~/.claude/prompts/${entry.name}/PROMPT.md`,
+            });
+          }
+        }
+      }
+      return roles.sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      return [];
+    }
+  });
+
+  // Save a custom team template
+  ipcMain.handle(IPC.TEAM_SAVE_TEMPLATE, async (_event, template: any) => {
+    const templatesFile = path.join(homedir(), '.agentmux', 'templates.json');
+    let templates: any[] = [];
+    try {
+      const data = await readFile(templatesFile, 'utf-8');
+      templates = JSON.parse(data);
+    } catch {}
+    // Replace if same id exists, otherwise append
+    const idx = templates.findIndex((t: any) => t.id === template.id);
+    if (idx >= 0) templates[idx] = template;
+    else templates.push(template);
+    await writeFile(templatesFile, JSON.stringify(templates, null, 2));
+    return { ok: true };
+  });
+
+  // Load custom team templates
+  ipcMain.handle(IPC.TEAM_LOAD_TEMPLATES, async () => {
+    const templatesFile = path.join(homedir(), '.agentmux', 'templates.json');
+    try {
+      const data = await readFile(templatesFile, 'utf-8');
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  });
+
+  // Delete a custom team template
+  ipcMain.handle(IPC.TEAM_DELETE_TEMPLATE, async (_event, { templateId }: { templateId: string }) => {
+    const templatesFile = path.join(homedir(), '.agentmux', 'templates.json');
+    try {
+      const data = await readFile(templatesFile, 'utf-8');
+      const templates = JSON.parse(data).filter((t: any) => t.id !== templateId);
+      await writeFile(templatesFile, JSON.stringify(templates, null, 2));
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  });
 }

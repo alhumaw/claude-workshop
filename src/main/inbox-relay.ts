@@ -46,6 +46,11 @@ export class InboxRelay {
     }
   }
 
+  /** Re-snapshot counts after sessions are restored (call after session restore) */
+  reinitCounts(): void {
+    this.initCounts();
+  }
+
   /** Snapshot existing inbox line counts so old messages aren't re-delivered on restart */
   private initCounts(): void {
     const sessions = this.sessionManager.getAllStatus();

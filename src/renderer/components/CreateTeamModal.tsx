@@ -60,14 +60,11 @@ const TEAM_TEMPLATES: TeamTemplate[] = [
   {
     id: 'small-coding',
     label: 'Small Coding Team',
-    description: '13 agents: coders, reviewers, QA, security, docs, testing, advocacy',
+    description: '10 agents: coder, reviewer, QA, security, docs, testing, advocacy',
     members: [
       { name: 'coder-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/coder/PROMPT.md' },
-      { name: 'coder-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/coder/PROMPT.md' },
       { name: 'cqa-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-quality-analyst/PROMPT.md' },
-      { name: 'cqa-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-quality-analyst/PROMPT.md' },
       { name: 'reviewer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-reviewer/PROMPT.md' },
-      { name: 'reviewer-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-reviewer/PROMPT.md' },
       { name: 'dev-advocate-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/developer-advocate/PROMPT.md' },
       { name: 'cust-advocate-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/customer-advocate/PROMPT.md' },
       { name: 'sec-analyst-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-analyst/PROMPT.md' },
@@ -75,6 +72,64 @@ const TEAM_TEMPLATES: TeamTemplate[] = [
       { name: 'debugger-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/debugger/PROMPT.md' },
       { name: 'tester-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/tester/PROMPT.md' },
       { name: 'tech-writer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/technical-writer/PROMPT.md' },
+    ],
+  },
+  {
+    id: 'large-coding',
+    label: 'Large Coding Team',
+    description: '19 agents: coders, reviewers, QA, security, debugging, testing, docs, advocacy',
+    members: [
+      { name: 'coder-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/coder/PROMPT.md' },
+      { name: 'coder-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/coder/PROMPT.md' },
+      { name: 'coder-3', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/coder/PROMPT.md' },
+      { name: 'coder-4', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/coder/PROMPT.md' },
+      { name: 'cqa-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-quality-analyst/PROMPT.md' },
+      { name: 'cqa-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-quality-analyst/PROMPT.md' },
+      { name: 'reviewer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-reviewer/PROMPT.md' },
+      { name: 'reviewer-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/code-reviewer/PROMPT.md' },
+      { name: 'sec-analyst-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-analyst/PROMPT.md' },
+      { name: 'sec-analyst-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-analyst/PROMPT.md' },
+      { name: 'sec-researcher-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-researcher/PROMPT.md' },
+      { name: 'sec-researcher-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-researcher/PROMPT.md' },
+      { name: 'debugger-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/debugger/PROMPT.md' },
+      { name: 'debugger-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/debugger/PROMPT.md' },
+      { name: 'tester-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/tester/PROMPT.md' },
+      { name: 'tester-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/tester/PROMPT.md' },
+      { name: 'dev-advocate-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/developer-advocate/PROMPT.md' },
+      { name: 'cust-advocate-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/customer-advocate/PROMPT.md' },
+      { name: 'tech-writer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/technical-writer/PROMPT.md' },
+    ],
+  },
+  {
+    id: 'writing',
+    label: 'Writing Team',
+    description: '8 agents: writers, technical writers, reviewers, auditors',
+    members: [
+      { name: 'writer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/writer/PROMPT.md' },
+      { name: 'writer-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/writer/PROMPT.md' },
+      { name: 'tech-writer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/technical-writer/PROMPT.md' },
+      { name: 'tech-writer-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/technical-writer/PROMPT.md' },
+      { name: 'reviewer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/reviewer/PROMPT.md' },
+      { name: 'reviewer-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/reviewer/PROMPT.md' },
+      { name: 'auditor-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/auditor/PROMPT.md' },
+      { name: 'auditor-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/auditor/PROMPT.md' },
+    ],
+  },
+  {
+    id: 'small-research',
+    label: 'Small Research Team',
+    description: '10 agents: researchers, security researchers, data analysts, reviewers, auditors',
+    members: [
+      { name: 'researcher-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/research/PROMPT.md' },
+      { name: 'researcher-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/research/PROMPT.md' },
+      { name: 'sec-researcher-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-researcher/PROMPT.md' },
+      { name: 'sec-researcher-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/security-researcher/PROMPT.md' },
+      { name: 'data-analyst-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/data-analyst/PROMPT.md' },
+      { name: 'data-analyst-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/data-analyst/PROMPT.md' },
+      { name: 'reviewer-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/reviewer/PROMPT.md' },
+      { name: 'reviewer-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/reviewer/PROMPT.md' },
+      { name: 'auditor-1', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/auditor/PROMPT.md' },
+      { name: 'auditor-2', model: 'claude-4-6-sonnet[1m]', promptPath: '~/.claude/prompts/auditor/PROMPT.md' },
     ],
   },
 ];
@@ -155,10 +210,15 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
   const createTeam = useSessionStore((s) => s.createTeam);
   const [mode, setMode] = useState<'custom' | 'template'>('custom');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [designMode, setDesignMode] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState<TeamTemplate[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<Array<{ name: string; promptPath: string }>>([]);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [teamName, setTeamName] = useState('');
   const [description, setDescription] = useState('');
   const [leadName, setLeadName] = useState('team-lead');
-  const [leadModel, setLeadModel] = useState('claude-4-6-opus');
+  const [leadModel, setLeadModel] = useState('claude-4-6-opus[1m]');
   const [leadCwd, setLeadCwd] = useState('');
   const [leadPrompt, setLeadPrompt] = useState('');
   const [leadPromptManual, setLeadPromptManual] = useState(false);
@@ -169,6 +229,9 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
     if (isOpen) {
       setMode('custom');
       setSelectedTemplate('');
+      setDesignMode(false);
+      setNewTemplateName('');
+      setNewTemplateDesc('');
       setTeamName('');
       setDescription('');
       setLeadName('team-lead');
@@ -178,14 +241,20 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
       setLeadPromptManual(false);
       setTeammates([]);
       setCreating(false);
+      // Load custom templates and available roles
+      window.electronAPI.loadTeamTemplates().then(setCustomTemplates);
+      window.electronAPI.scanRoles().then(setAvailableRoles);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const allTemplates = [...TEAM_TEMPLATES, ...customTemplates];
+
   const applyTemplate = (templateId: string) => {
     setSelectedTemplate(templateId);
-    const template = TEAM_TEMPLATES.find((t) => t.id === templateId);
+    setDesignMode(false);
+    const template = allTemplates.find((t) => t.id === templateId);
     if (!template) { setTeammates([]); return; }
     setTeammates(template.members.map((m) => ({
       name: m.name,
@@ -196,6 +265,48 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
     })));
     if (!teamName) setTeamName(template.id);
     if (!description) setDescription(template.description);
+  };
+
+  const addFromRole = (role: { name: string; promptPath: string }) => {
+    // Count existing members with this role to auto-number
+    const existing = teammates.filter((t) => t.name.replace(/-\d+$/, '') === role.name);
+    const num = existing.length + 1;
+    const name = `${role.name}-${num}`;
+    setTeammates([...teammates, {
+      name,
+      model: 'claude-4-6-sonnet[1m]',
+      cwd: '',
+      promptFile: role.promptPath,
+      promptManual: true,
+    }]);
+  };
+
+  const saveCustomTemplate = async () => {
+    if (!newTemplateName.trim() || teammates.length === 0) return;
+    const id = newTemplateName.trim().toLowerCase().replace(/\s+/g, '-');
+    const template: TeamTemplate = {
+      id,
+      label: newTemplateName.trim(),
+      description: newTemplateDesc.trim() || `${teammates.length} agents`,
+      members: teammates.map((t) => ({
+        name: t.name,
+        model: t.model,
+        promptPath: t.promptFile,
+      })),
+    };
+    await window.electronAPI.saveTeamTemplate(template);
+    setCustomTemplates([...customTemplates.filter((t) => t.id !== id), template]);
+    setDesignMode(false);
+    setSelectedTemplate(id);
+  };
+
+  const deleteCustomTemplate = async (templateId: string) => {
+    await window.electronAPI.deleteTeamTemplate(templateId);
+    setCustomTemplates(customTemplates.filter((t) => t.id !== templateId));
+    if (selectedTemplate === templateId) {
+      setSelectedTemplate('');
+      setTeammates([]);
+    }
   };
 
   const addTeammate = () => {
@@ -286,7 +397,7 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 520,
+          width: 640,
           maxWidth: 'calc(100vw - 48px)',
           maxHeight: 'calc(100vh - 96px)',
           background: 'var(--bg-secondary)',
@@ -341,8 +452,9 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
           </div>
 
           {/* Template selector */}
-          {mode === 'template' && (
+          {mode === 'template' && !designMode && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Built-in templates */}
               {TEAM_TEMPLATES.map((t) => (
                 <div key={t.id} onClick={() => applyTemplate(t.id)} style={{
                   padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
@@ -360,6 +472,105 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
                   </div>
                 </div>
               ))}
+
+              {/* Custom templates */}
+              {customTemplates.map((t) => (
+                <div key={t.id} style={{
+                  padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                  background: selectedTemplate === t.id ? 'var(--bg-card)' : 'transparent',
+                  border: selectedTemplate === t.id ? '1px solid var(--accent)' : '1px solid var(--border-default)',
+                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                }}
+                  onClick={() => applyTemplate(t.id)}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{t.description}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                      {t.members.length} agents: {t.members.map((m) => m.name).join(', ')}
+                    </div>
+                  </div>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); deleteCustomTemplate(t.id); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+                    title="Delete template"
+                  >✕</button>
+                </div>
+              ))}
+
+              {/* Design New Team pill */}
+              <div onClick={() => { setDesignMode(true); setSelectedTemplate(''); setTeammates([]); setNewTemplateName(''); setNewTemplateDesc(''); }}
+                style={{
+                  padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                  border: '1px dashed var(--border-default)',
+                  textAlign: 'center',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>+ Design New Team</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Pick roles from your prompts directory</div>
+              </div>
+            </div>
+          )}
+
+          {/* Design mode — role picker */}
+          {mode === 'template' && designMode && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Template Name</label>
+                  <input value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="my-custom-team" style={inputStyle} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Description</label>
+                  <input value={newTemplateDesc} onChange={(e) => setNewTemplateDesc(e.target.value)}
+                    placeholder="What does this team do?" style={inputStyle} />
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Add Agent by Role ({availableRoles.length} available)</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 120, overflowY: 'auto', padding: 4 }}>
+                  {availableRoles.map((role) => (
+                    <button key={role.name} type="button" onClick={() => addFromRole(role)}
+                      style={{
+                        padding: '4px 10px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
+                        background: 'var(--bg-card)', border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+                      title={role.promptPath}
+                    >
+                      + {role.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {teammates.length > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {teammates.length} agent(s) added. Edit names/prompts below, then save.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setDesignMode(false)} style={{
+                  padding: '6px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-default)',
+                  borderRadius: 6, color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer',
+                }}>Back</button>
+                <button type="button" onClick={saveCustomTemplate}
+                  disabled={!newTemplateName.trim() || teammates.length === 0}
+                  style={{
+                    padding: '6px 14px', background: 'var(--accent)', border: 'none',
+                    borderRadius: 6, color: '#1a1a1a', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    opacity: (!newTemplateName.trim() || teammates.length === 0) ? 0.5 : 1,
+                  }}>Save Template</button>
+              </div>
             </div>
           )}
 

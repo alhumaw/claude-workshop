@@ -175,6 +175,10 @@ app.whenReady().then(async () => {
       }
     }
     await clearSessions();
+
+    // Re-init relay counts NOW that sessions are restored with team fields
+    // (the initial initCounts ran before sessions existed, so it was empty)
+    inboxRelay.reinitCounts();
   }
 
   // Once the renderer is ready, push restored sessions and teams

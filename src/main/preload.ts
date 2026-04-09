@@ -116,6 +116,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC.TEAM_DELETE, { teamName }),
   listTeams: () =>
     ipcRenderer.invoke(IPC.TEAM_LIST),
+  scanRoles: () =>
+    ipcRenderer.invoke(IPC.TEAM_SCAN_ROLES),
+  saveTeamTemplate: (template: any) =>
+    ipcRenderer.invoke(IPC.TEAM_SAVE_TEMPLATE, template),
+  loadTeamTemplates: () =>
+    ipcRenderer.invoke(IPC.TEAM_LOAD_TEMPLATES),
+  deleteTeamTemplate: (templateId: string) =>
+    ipcRenderer.invoke(IPC.TEAM_DELETE_TEMPLATE, { templateId }),
 
   // Team restoration
   onTeamRestored: (callback: (team: any) => void) => {
