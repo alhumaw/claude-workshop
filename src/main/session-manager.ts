@@ -323,7 +323,7 @@ export class SessionManager {
         const isWorking = session.info.status === 'generating' || session.info.status === 'thinking';
         const bytes = isWorking ? Math.min(session.bytesSinceLastPoll, 10000) : 0;
         session.bytesSinceLastPoll = 0;
-        const xpDelta = Math.floor(bytes / 2);
+        const xpDelta = bytes; // 1 XP per byte
 
         if (xpDelta > 0) {
           const prevLevel = bs.level;
