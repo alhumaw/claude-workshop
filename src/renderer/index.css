@@ -67,3 +67,246 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* ── Battle System: Border Tiers ─────────────────────────────────── */
+/* Matches docs/border-tiers-preview.html exactly */
+
+.border-rookie {
+  border: 2px solid #8B6914 !important;
+}
+
+.border-bronze {
+  border: 2px solid #CD7F32 !important;
+  box-shadow: 0 0 4px 1px rgba(205, 127, 50, 0.3);
+}
+
+.border-iron {
+  border: 2px solid #71797E !important;
+  box-shadow: 0 0 4px 1px rgba(113, 121, 126, 0.3);
+}
+
+.border-silver {
+  border: 2px solid #C0C0C0 !important;
+  animation: silverShine 3s ease-in-out infinite;
+}
+
+.border-gold {
+  border: 2px solid #FFD700 !important;
+  animation: goldShimmer 2.5s ease-in-out infinite;
+}
+
+.border-platinum {
+  border: 2px solid #E5E4E2 !important;
+  animation: platinumGlow 2s ease-in-out infinite;
+}
+
+/* Diamond through Eternal use ::before gradient overlays.
+   Applied to the pixel grid div itself with background-clip: padding-box.
+   The outer wrapper has isolation: isolate so z-index:-1 stays visible. */
+.border-diamond,
+.border-mythic,
+.border-legendary,
+.border-ascended,
+.border-eternal {
+  border: 2px solid transparent !important;
+  overflow: visible;
+}
+
+.border-diamond {
+  animation: diamondPulse 3s ease-in-out infinite;
+}
+.border-diamond::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #67e8f9, #a5f3fc, #22d3ee, #06b6d4, #67e8f9);
+  background-size: 200% 200%;
+  z-index: -1;
+  animation: gradientShift 3s linear infinite;
+}
+
+.border-mythic {
+  animation: mythicPulse 2s ease-in-out infinite;
+}
+.border-mythic::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #c084fc, #f472b6, #facc15, #4ade80, #60a5fa, #c084fc);
+  background-size: 300% 300%;
+  z-index: -1;
+  animation: gradientShift 4s linear infinite;
+}
+
+.border-legendary {
+  animation: legendaryPulse 1.5s ease-in-out infinite;
+}
+.border-legendary::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #FFD700, #FFA500, #FFD700, #FFFACD, #FFD700);
+  background-size: 200% 200%;
+  z-index: -1;
+  animation: gradientShift 2s linear infinite;
+}
+
+.border-ascended {
+  animation: ascendedPulse 1.2s ease-in-out infinite;
+}
+.border-ascended::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #c084fc, #f472b6, #fb923c, #facc15, #4ade80, #60a5fa, #c084fc);
+  background-size: 400% 400%;
+  z-index: -1;
+  animation: ascendedShift 3s linear infinite;
+}
+
+.border-eternal {
+  border-width: 3px !important;
+  animation: eternalPulse 1s ease-in-out infinite;
+}
+.border-eternal::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, #c084fc, #f472b6, #fb923c, #facc15, #4ade80, #22d3ee, #60a5fa, #c084fc);
+  z-index: -1;
+  animation: eternalSpin 2s linear infinite;
+}
+.border-eternal::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  background: conic-gradient(from 180deg, rgba(192,132,252,0.3), rgba(244,114,182,0.3), rgba(250,204,21,0.3), rgba(74,222,128,0.3), rgba(96,165,250,0.3), rgba(192,132,252,0.3));
+  z-index: -2;
+  animation: eternalSpin 3s linear infinite reverse;
+  filter: blur(6px);
+}
+
+@keyframes silverShine {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(192, 192, 192, 0.25); }
+  50% { box-shadow: 0 0 10px 3px rgba(192, 192, 192, 0.45); }
+}
+
+@keyframes goldShimmer {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.3); border-color: #FFD700; }
+  50% { box-shadow: 0 0 14px 4px rgba(255, 215, 0, 0.5); border-color: #FFC107; }
+}
+
+@keyframes platinumGlow {
+  0%, 100% { box-shadow: 0 0 10px 3px rgba(229, 228, 226, 0.3); }
+  50% { box-shadow: 0 0 16px 5px rgba(229, 228, 226, 0.55); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes diamondPulse {
+  0%, 100% { box-shadow: 0 0 12px 3px rgba(103, 232, 249, 0.35); }
+  50% { box-shadow: 0 0 18px 5px rgba(103, 232, 249, 0.55); }
+}
+
+@keyframes mythicPulse {
+  0%, 100% { box-shadow: 0 0 14px 4px rgba(192, 132, 252, 0.4); }
+  50% { box-shadow: 0 0 20px 6px rgba(244, 114, 182, 0.5); }
+}
+
+@keyframes legendaryPulse {
+  0%, 100% { box-shadow: 0 0 16px 5px rgba(255, 215, 0, 0.4), 0 0 30px 10px rgba(255, 165, 0, 0.2); }
+  50% { box-shadow: 0 0 24px 8px rgba(255, 215, 0, 0.6), 0 0 40px 15px rgba(255, 165, 0, 0.35); }
+}
+
+@keyframes ascendedShift {
+  0% { background-position: 0% 50%; }
+  25% { background-position: 50% 100%; }
+  50% { background-position: 100% 50%; }
+  75% { background-position: 50% 0%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes ascendedPulse {
+  0%, 100% { box-shadow: 0 0 18px 6px rgba(192, 132, 252, 0.4), 0 0 35px 12px rgba(96, 165, 250, 0.25); }
+  50% { box-shadow: 0 0 28px 10px rgba(244, 114, 182, 0.5), 0 0 50px 18px rgba(250, 204, 21, 0.3); }
+}
+
+@keyframes eternalSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes eternalPulse {
+  0%, 100% { box-shadow: 0 0 20px 8px rgba(192, 132, 252, 0.5), 0 0 40px 16px rgba(96, 165, 250, 0.3), 0 0 60px 24px rgba(250, 204, 21, 0.15); }
+  50% { box-shadow: 0 0 30px 12px rgba(244, 114, 182, 0.6), 0 0 55px 20px rgba(74, 222, 128, 0.35), 0 0 80px 30px rgba(192, 132, 252, 0.2); }
+}
+
+/* ── Battle System: Shiny Pixel Shimmer ──────────────────────────── */
+
+.shiny-pixel {
+  animation: shinyShimmer 2s ease-in-out infinite;
+}
+
+@keyframes shinyShimmer {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.4); }
+}
+
+/* ── Battle System: Combat Flash ─────────────────────────────────── */
+
+@keyframes battleFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Battle System: Sword Pulse ──────────────────────────────────── */
+
+.sword-pulse {
+  animation: swordPulse 1.5s ease-in-out infinite;
+  color: #facc15;
+}
+
+@keyframes swordPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ── Battle System: Level-Up Border Sweep ────────────────────────── */
+
+.level-up-sweep {
+  animation: levelUpSweep 1.5s ease-out !important;
+}
+
+@keyframes levelUpSweep {
+  0% {
+    border-color: #c084fc;
+    box-shadow: 0 0 12px 4px rgba(192, 132, 252, 0.6);
+  }
+  25% {
+    border-color: #f472b6;
+    box-shadow: 0 0 16px 6px rgba(244, 114, 182, 0.5);
+  }
+  50% {
+    border-color: #facc15;
+    box-shadow: 0 0 20px 8px rgba(250, 204, 21, 0.4);
+  }
+  75% {
+    border-color: #4ade80;
+    box-shadow: 0 0 16px 6px rgba(74, 222, 128, 0.5);
+  }
+  100% {
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
+

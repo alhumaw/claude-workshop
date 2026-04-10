@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { homedir } from 'os';
-import { SessionInfo } from '../shared/types';
+import { SessionInfo, AgentBattleState } from '../shared/types';
 
 const DATA_DIR = path.join(homedir(), '.agentmux');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -21,6 +21,7 @@ interface PersistedState {
     teamId?: string;
     teamRole?: 'lead' | 'teammate';
     teamAgentName?: string;
+    battleState?: AgentBattleState;
   }>;
   activeSessionIndex: number;
 }
@@ -53,6 +54,7 @@ export async function saveSessions(sessions: SessionInfo[], activeSessionId: str
         teamId: s.teamId,
         teamRole: s.teamRole,
         teamAgentName: s.teamAgentName,
+        battleState: s.battleState,
       })),
     activeSessionIndex: Math.max(0, activeIndex),
   };

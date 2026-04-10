@@ -10,6 +10,10 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { loadConfig, saveConfig } from './config';
 import { exportToObsidian } from './obsidian-exporter';
+import { calculateLevel, processBattle, createBattleState, generateBattleName, isShiny as checkShiny } from './battle-engine';
+import { getAgentType } from '../shared/battle-utils';
+import { randomBytes } from 'crypto';
+import { saveToHallOfFame, loadHallOfFame } from './hall-of-fame';
 
 export function registerIpcHandlers(
   sessionManager: SessionManager,
@@ -63,6 +67,11 @@ export function registerIpcHandlers(
       }
     }
 
+    // Save to Hall of Fame before killing
+    if (session?.info.battleState) {
+      await saveToHallOfFame(session.info, session.info.battleState.isDead ? 'permadeath' : 'killed');
+    }
+
     sessionManager.kill(sessionId);
     return { ok: true };
   });
@@ -101,6 +110,15 @@ export function registerIpcHandlers(
       { label: 'Switch to Session', click: () => win.webContents.send('context-menu:action', { sessionId, action: 'switch' }) },
       { type: 'separator' },
     ];
+
+    // Battle menu items (only for standalone sessions with battle state)
+    if (session?.info.battleState && !isTeamMember) {
+      template.push(
+        { label: 'Battle Log', click: () => win.webContents.send('context-menu:action', { sessionId, action: 'battle-log' }) },
+        { label: 'Bestiary', click: () => win.webContents.send('context-menu:action', { sessionId, action: 'bestiary' }) },
+        { type: 'separator' },
+      );
+    }
 
     if (isTeamMember) {
       template.push({
@@ -448,6 +466,77 @@ export function registerIpcHandlers(
       return { ok: true };
     } catch {
       return { ok: false };
+    }
+  });
+
+  // Hall of Fame
+  ipcMain.handle(IPC.HALL_OF_FAME_LOAD, async () => {
+    return loadHallOfFame();
+  });
+
+  // ── Battle Admin (debug only — never commit) ──────────────────────
+  ipcMain.handle(IPC.BATTLE_ADMIN, (_event, { sessionId, cmd, value }: { sessionId: string; cmd: string; value?: number }) => {
+    const managed = sessionManager.getSession(sessionId);
+    const bs = managed?.info.battleState;
+    if (!bs) return { ok: false, error: 'No battle state' };
+    switch (cmd) {
+      case 'set-xp':
+        bs.xp = Math.max(0, value ?? 0);
+        bs.level = calculateLevel(bs.xp);
+        bs.peakLevel = Math.max(bs.peakLevel ?? 1, bs.level);
+        return { ok: true };
+      case 'set-morale':
+        bs.morale = Math.max(0, Math.min(10, value ?? 5));
+        if (bs.morale <= 0) bs.isDead = true;
+        if (bs.morale > 0) bs.isDead = false;
+        return { ok: true };
+      case 'trigger-battle': {
+        const result = processBattle(bs, managed!.info.avatarSeed);
+        if (result) {
+          const win = getWindow();
+          if (win) win.webContents.send(IPC.BATTLE_RESULT, { sessionId, result });
+        }
+        return { ok: true, result };
+      }
+      case 'trigger-boss': {
+        bs.battlesCompleted = Math.ceil((bs.battlesCompleted + 1) / 7) * 7 - 1;
+        const result = processBattle(bs, managed!.info.avatarSeed);
+        if (result) {
+          const win = getWindow();
+          if (win) win.webContents.send(IPC.BATTLE_RESULT, { sessionId, result });
+        }
+        return { ok: true, result };
+      }
+      case 'toggle-shiny':
+        bs.isShiny = !bs.isShiny;
+        return { ok: true };
+      case 'kill':
+        bs.isDead = true;
+        bs.morale = 0;
+        return { ok: true };
+      case 'revive':
+        bs.isDead = false;
+        bs.morale = 5;
+        bs.consecutiveLosses = 0;
+        bs.lastLossTime = 0;
+        return { ok: true };
+      case 'reveal-stats':
+        bs.revealedStats = ['hp', 'atk', 'def', 'spd'];
+        bs.battlesCompleted = Math.max(bs.battlesCompleted, 25);
+        return { ok: true };
+      case 'reset':
+        managed!.info.battleState = createBattleState(managed!.info.avatarSeed);
+        return { ok: true };
+      case 'reroll': {
+        const newSeed = randomBytes(4).toString('hex');
+        managed!.info.avatarSeed = newSeed;
+        bs.battleName = generateBattleName(newSeed);
+        bs.type = getAgentType(newSeed);
+        bs.isShiny = checkShiny(newSeed);
+        return { ok: true };
+      }
+      default:
+        return { ok: false, error: `Unknown cmd: ${cmd}` };
     }
   });
 }

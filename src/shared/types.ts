@@ -1,3 +1,73 @@
+export interface LootItem {
+  id: string;
+  name: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'legendary';
+  slot: 'weapon' | 'armor' | 'accessory';
+  statBoost: { stat: string; pct: number };
+  description: string;
+}
+
+export interface BattleResultInfo {
+  won: boolean;
+  mobName: string;
+  mobLevel: number;
+  mobIsBoss: boolean;
+  mobIsRare: boolean;
+  xpGained: number;
+  xpLost: number;
+  agentHpRemaining: number;
+  agentHpMax: number;
+  mobHpMax: number;
+  roundCount: number;
+  lootDrop?: LootItem;
+}
+
+export interface AgentBattleState {
+  xp: number;
+  level: number;
+  battleName: string;
+  type: 'thinker' | 'generator' | 'researcher' | 'debugger';
+  isShiny: boolean;
+  isDead: boolean;
+  morale: number;
+  wins: number;
+  losses: number;
+  winStreak: number;
+  bestStreak: number;
+  bossKills: number;
+  consecutiveLosses: number;
+  battlesCompleted: number;
+  equippedItems: { weapon?: LootItem; armor?: LootItem; accessory?: LootItem };
+  inventory: LootItem[];
+  bestiary: Record<string, { encountered: number; defeated: number; rare: boolean }>;
+  milestones: string[];
+  tokensSinceLastBattle: number;
+  nextBattleThreshold: number;
+  revealedStats: ('hp' | 'atk' | 'def' | 'spd')[];
+  pendingBattle: BattleResultInfo | null;
+  pendingMilestone: string | null;
+  lastLossTime: number;
+  peakLevel: number;
+  battleLog: BattleResultInfo[];
+}
+
+export interface HallOfFameEntry {
+  avatarSeed: string;
+  battleName: string;
+  type: string;
+  isShiny: boolean;
+  level: number;
+  peakLevel: number;
+  wins: number;
+  losses: number;
+  bestStreak: number;
+  bossKills: number;
+  milestones: string[];
+  equippedItems: { weapon?: LootItem; armor?: LootItem; accessory?: LootItem };
+  retiredAt: number;
+  causeOfDeath: 'permadeath' | 'killed';
+}
+
 export interface SessionInfo {
   id: string;
   name: string;
@@ -15,6 +85,7 @@ export interface SessionInfo {
   teamId?: string; // team name if part of a team
   teamRole?: 'lead' | 'teammate';
   teamAgentName?: string; // agent name within the team (e.g., "writer-1")
+  battleState?: AgentBattleState;
 }
 
 export interface ToolkitAction {
@@ -29,6 +100,7 @@ export interface ToolkitConfig {
 
 export interface AppConfig {
   vaultPath: string; // path to Obsidian vault directory, empty string if not set
+  enableBattleSystem: boolean;
 }
 
 export interface TeamMemberConfig {
@@ -88,4 +160,8 @@ export const IPC = {
   TEAM_SAVE_TEMPLATE: 'team:save-template',
   TEAM_LOAD_TEMPLATES: 'team:load-templates',
   TEAM_DELETE_TEMPLATE: 'team:delete-template',
+  BATTLE_RESULT: 'battle:result',
+  BATTLE_ADMIN: 'battle:admin',
+  MILESTONE_EARNED: 'battle:milestone',
+  HALL_OF_FAME_LOAD: 'hall-of-fame:load',
 } as const;

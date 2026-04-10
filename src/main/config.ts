@@ -9,6 +9,7 @@ const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 
 const DEFAULT_CONFIG: AppConfig = {
   vaultPath: '',
+  enableBattleSystem: true,
 };
 
 async function ensureDir(): Promise<void> {
