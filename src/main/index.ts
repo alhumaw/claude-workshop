@@ -160,8 +160,17 @@ app.whenReady().then(async () => {
           console.log(`[Workshop] tagged lead ${leadSession.name} → ${member.name}@${config.name} (matched by ${leadSession.claudeSessionId === config.leadSessionId ? 'sessionId' : 'fallback'})`);
         }
       } else {
-        console.log(`[Workshop] could not find lead session for ${config.name}, leadSessionId=${config.leadSessionId}`);
+        console.log(`[Workshop] ignoring team ${config.name} — no Workshop lead session found`);
       }
+      return;
+    }
+
+    // Only process teammates for teams whose lead is managed by Workshop
+    const leadTagged = sessionManager.getAllStatus().find(
+      (s) => s.teamId === config.name && s.teamRole === 'lead'
+    );
+    if (!leadTagged) {
+      // This team's lead isn't in Workshop — skip this teammate
       return;
     }
 
