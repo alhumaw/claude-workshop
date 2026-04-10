@@ -37,12 +37,13 @@ declare global {
       resizeShell: (id: string, cols: number, rows: number) => void;
       killShell: (id: string) => Promise<{ ok: boolean }>;
       onShellData: (callback: (id: string, data: string) => void) => () => void;
-      createTeam: (params: { teamName: string; description: string; leadCwd: string; members: Array<{ name: string; model?: string; promptPath?: string }> }) => Promise<{ leadInfo: any }>;
+      createTeam: (params: { teamName: string; description: string; leadCwd: string; members: Array<{ name: string; model?: string; promptPath?: string }>; protocolPath?: string }) => Promise<{ leadInfo: any }>;
       listTeams: () => Promise<any[]>;
       syncTeams: () => Promise<any[]>;
       onTeamConfigUpdate: (callback: (config: any) => void) => () => void;
       onTeamMemberAdded: (callback: (data: any) => void) => () => void;
       scanRoles: () => Promise<Array<{ name: string; promptPath: string }>>;
+      scanProtocols: () => Promise<Array<{ name: string; path: string; files: string[] }>>;
       saveTeamTemplate: (template: any) => Promise<{ ok: boolean }>;
       loadTeamTemplates: () => Promise<any[]>;
       deleteTeamTemplate: (templateId: string) => Promise<{ ok: boolean }>;

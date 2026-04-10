@@ -115,6 +115,8 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customTemplates, setCustomTemplates] = useState<TeamTemplate[]>([]);
   const [availableRoles, setAvailableRoles] = useState<Array<{ name: string; promptPath: string }>>([]);
+  const [availableProtocols, setAvailableProtocols] = useState<Array<{ name: string; path: string; files: string[] }>>([]);
+  const [selectedProtocol, setSelectedProtocol] = useState<string>('');
   const [creating, setCreating] = useState(false);
 
   // Design mode state
@@ -129,12 +131,14 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
       setDescription('');
       setLeadCwd('');
       setSelectedTemplate('');
+      setSelectedProtocol('');
       setCreating(false);
       setDesignName('');
       setDesignDesc('');
       setDesignMembers([]);
       window.electronAPI.loadTeamTemplates().then(setCustomTemplates);
       window.electronAPI.scanRoles().then(setAvailableRoles);
+      window.electronAPI.scanProtocols().then(setAvailableProtocols);
     }
   }, [isOpen]);
 
@@ -156,6 +160,7 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
       description: description.trim(),
       leadCwd: leadCwd.trim() || '~',
       members,
+      protocolPath: selectedProtocol || undefined,
     });
     setCreating(false);
     onClose();
@@ -234,6 +239,30 @@ export function CreateTeamModal({ isOpen, onClose }: Props) {
                 borderRadius: 4, color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12,
               }}>Browse</button>
             </div>
+            {/* Protocol selector */}
+            {availableProtocols.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Lead protocol (optional):</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  <button onClick={() => setSelectedProtocol('')} style={{
+                    padding: '3px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                    background: !selectedProtocol ? 'var(--accent)' : 'var(--bg-card)',
+                    border: '1px solid var(--border-default)',
+                    color: !selectedProtocol ? '#000' : 'var(--text-primary)',
+                    fontWeight: !selectedProtocol ? 600 : 400,
+                  }}>None</button>
+                  {availableProtocols.filter(p => p.name !== 'root').map(p => (
+                    <button key={p.name} onClick={() => setSelectedProtocol(p.path)} style={{
+                      padding: '3px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                      background: selectedProtocol === p.path ? 'var(--accent)' : 'var(--bg-card)',
+                      border: '1px solid var(--border-default)',
+                      color: selectedProtocol === p.path ? '#000' : 'var(--text-primary)',
+                      fontWeight: selectedProtocol === p.path ? 600 : 400,
+                    }}>{p.name} ({p.files.length} files)</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

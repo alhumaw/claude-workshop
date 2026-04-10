@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Agent Battle System — Borders, Evolutions & Mutations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 40px;
+  }
+  h1 { text-align: center; margin-bottom: 8px; font-size: 24px; }
+  h2 { margin: 40px 0 16px; font-size: 16px; color: #888; border-bottom: 1px solid #333; padding-bottom: 8px; }
+  .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 32px; }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .tier {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100px;
+  }
+  .tier-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+  .tier-level { font-size: 10px; color: #888; }
+  .tier-title { font-size: 9px; color: #555; font-style: italic; }
+  .avatar-wrap {
+    width: 64px; height: 64px; border-radius: 12px;
+    display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+    padding: 5px; gap: 2px; position: relative;
+  }
+  .pixel { border-radius: 2px; }
+  .level-badge {
+    position: absolute; bottom: -2px; right: -2px;
+    font-size: 8px; font-weight: 700; color: #fff;
+    background: rgba(0,0,0,0.7); border-radius: 3px;
+    padding: 0 3px; line-height: 12px;
+  }
+
+  /* Evolution section */
+  .evo-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+  .evo-arrow { color: #555; font-size: 20px; }
+  .evo-stage {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .evo-label { font-size: 10px; color: #888; text-align: center; max-width: 80px; }
+
+  /* === BORDER TIERS === */
+  .border-none { background: hsl(200, 30%, 25%); }
+  .border-wood { background: hsl(200, 30%, 25%); border: 2px solid #8B6914; }
+  .border-bronze { background: hsl(200, 30%, 25%); border: 2px solid #CD7F32; box-shadow: 0 0 4px 1px rgba(205,127,50,0.3); }
+  .border-iron { background: hsl(200, 30%, 25%); border: 2px solid #71797E; box-shadow: 0 0 4px 1px rgba(113,121,126,0.3); }
+  .border-silver { background: hsl(200, 30%, 25%); border: 2px solid #C0C0C0; animation: silverShine 3s ease-in-out infinite; }
+  @keyframes silverShine { 0%,100%{box-shadow:0 0 6px 2px rgba(192,192,192,0.25)} 50%{box-shadow:0 0 10px 3px rgba(192,192,192,0.45)} }
+  .border-gold { background: hsl(200, 30%, 25%); border: 2px solid #FFD700; animation: goldShimmer 2.5s ease-in-out infinite; }
+  @keyframes goldShimmer { 0%,100%{box-shadow:0 0 8px 2px rgba(255,215,0,0.3);border-color:#FFD700} 50%{box-shadow:0 0 14px 4px rgba(255,215,0,0.5);border-color:#FFC107} }
+  .border-platinum { background: hsl(200, 30%, 25%); border: 2px solid #E5E4E2; animation: platGlow 2s ease-in-out infinite; }
+  @keyframes platGlow { 0%,100%{box-shadow:0 0 10px 3px rgba(229,228,226,0.3)} 50%{box-shadow:0 0 16px 5px rgba(229,228,226,0.55)} }
+  .border-diamond { background: hsl(200, 30%, 25%); border: 2px solid transparent; background-clip: padding-box; animation: diamShift 3s ease-in-out infinite; }
+  .border-diamond::before { content:''; position:absolute; inset:-2px; border-radius:14px; background:linear-gradient(135deg,#67e8f9,#a5f3fc,#22d3ee,#06b6d4,#67e8f9); background-size:200% 200%; z-index:-1; animation:diamGrad 3s linear infinite; }
+  @keyframes diamGrad { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes diamShift { 0%,100%{box-shadow:0 0 12px 3px rgba(103,232,249,0.35)} 50%{box-shadow:0 0 18px 5px rgba(103,232,249,0.55)} }
+  .border-mythic { background: hsl(200, 30%, 25%); border: 2px solid transparent; background-clip: padding-box; animation: mythPulse 2s ease-in-out infinite; }
+  .border-mythic::before { content:''; position:absolute; inset:-2px; border-radius:14px; background:linear-gradient(135deg,#c084fc,#f472b6,#facc15,#4ade80,#60a5fa,#c084fc); background-size:300% 300%; z-index:-1; animation:mythRainbow 4s linear infinite; }
+  @keyframes mythRainbow { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes mythPulse { 0%,100%{box-shadow:0 0 14px 4px rgba(192,132,252,0.4)} 50%{box-shadow:0 0 20px 6px rgba(244,114,182,0.5)} }
+  .border-legendary { background: hsl(200, 30%, 25%); border: 2px solid transparent; background-clip: padding-box; animation: legPulse 1.5s ease-in-out infinite; }
+  .border-legendary::before { content:''; position:absolute; inset:-3px; border-radius:15px; background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700,#FFFACD,#FFD700); background-size:200% 200%; z-index:-1; animation:legGold 2s linear infinite; }
+  @keyframes legGold { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes legPulse { 0%,100%{box-shadow:0 0 16px 5px rgba(255,215,0,0.4),0 0 30px 10px rgba(255,165,0,0.2)} 50%{box-shadow:0 0 24px 8px rgba(255,215,0,0.6),0 0 40px 15px rgba(255,165,0,0.35)} }
+  .border-ascended { background: hsl(200, 30%, 25%); border: 2px solid transparent; background-clip: padding-box; animation: ascPulse 1.2s ease-in-out infinite; }
+  .border-ascended::before { content:''; position:absolute; inset:-3px; border-radius:15px; background:linear-gradient(135deg,#c084fc,#f472b6,#fb923c,#facc15,#4ade80,#60a5fa,#c084fc); background-size:400% 400%; z-index:-1; animation:ascShift 3s linear infinite; }
+  @keyframes ascShift { 0%{background-position:0% 50%} 25%{background-position:50% 100%} 50%{background-position:100% 50%} 75%{background-position:50% 0%} 100%{background-position:0% 50%} }
+  @keyframes ascPulse { 0%,100%{box-shadow:0 0 18px 6px rgba(192,132,252,0.4),0 0 35px 12px rgba(96,165,250,0.25)} 50%{box-shadow:0 0 28px 10px rgba(244,114,182,0.5),0 0 50px 18px rgba(250,204,21,0.3)} }
+  .border-eternal { background: hsl(200, 30%, 25%); border: 3px solid transparent; background-clip: padding-box; animation: etPulse 1s ease-in-out infinite; }
+  .border-eternal::before { content:''; position:absolute; inset:-4px; border-radius:16px; background:conic-gradient(from 0deg,#c084fc,#f472b6,#fb923c,#facc15,#4ade80,#22d3ee,#60a5fa,#c084fc); z-index:-1; animation:etSpin 2s linear infinite; }
+  .border-eternal::after { content:''; position:absolute; inset:-8px; border-radius:20px; background:conic-gradient(from 180deg,rgba(192,132,252,0.3),rgba(244,114,182,0.3),rgba(250,204,21,0.3),rgba(74,222,128,0.3),rgba(96,165,250,0.3),rgba(192,132,252,0.3)); z-index:-2; animation:etSpin 3s linear infinite reverse; filter:blur(6px); }
+  @keyframes etSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes etPulse { 0%,100%{box-shadow:0 0 20px 8px rgba(192,132,252,0.5),0 0 40px 16px rgba(96,165,250,0.3),0 0 60px 24px rgba(250,204,21,0.15)} 50%{box-shadow:0 0 30px 12px rgba(244,114,182,0.6),0 0 55px 20px rgba(74,222,128,0.35),0 0 80px 30px rgba(192,132,252,0.2)} }
+
+  /* Extra animations for loot/states */
+  @keyframes chromatic {
+    0% { border-color: #ef4444; box-shadow: 0 0 8px 2px rgba(239,68,68,0.4); }
+    16% { border-color: #fb923c; box-shadow: 0 0 8px 2px rgba(251,146,60,0.4); }
+    33% { border-color: #facc15; box-shadow: 0 0 8px 2px rgba(250,204,21,0.4); }
+    50% { border-color: #4ade80; box-shadow: 0 0 8px 2px rgba(74,222,128,0.4); }
+    66% { border-color: #60a5fa; box-shadow: 0 0 8px 2px rgba(96,165,250,0.4); }
+    83% { border-color: #c084fc; box-shadow: 0 0 8px 2px rgba(192,132,252,0.4); }
+    100% { border-color: #ef4444; box-shadow: 0 0 8px 2px rgba(239,68,68,0.4); }
+  }
+  @keyframes fireGlow {
+    0%, 100% { box-shadow: 0 0 12px 4px rgba(239,68,68,0.4), 0 0 24px 8px rgba(251,146,60,0.2); }
+    50% { box-shadow: 0 0 20px 8px rgba(239,68,68,0.6), 0 0 36px 12px rgba(251,146,60,0.35); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Agent Battle System</h1>
+<p class="subtitle">Border Tiers, Avatar Evolutions & Mutations</p>
+
+<h2>Border Tiers</h2>
+<div class="row" id="borders"></div>
+
+<h2>Avatar Evolution (Same Agent Over Time)</h2>
+<p style="color:#666;font-size:12px;text-align:center;margin-bottom:20px;">
+  Each evolution stage adds visual complexity to the pixel art. The seed stays the same — the avatar <em>grows</em>.
+</p>
+
+<div id="evolutions"></div>
+
+<h2>Different Seeds — Same Level</h2>
+<p style="color:#666;font-size:12px;text-align:center;margin-bottom:20px;">
+  Every agent looks different because stats and pixels are derived from the seed. Here are 6 agents all at Lv.50 (Diamond).
+</p>
+<div class="row" id="seeds"></div>
+
+<h2>Battle Name Examples</h2>
+<div class="row" id="names" style="gap:16px;"></div>
+
+<h2>Equipped Loot Items</h2>
+<p style="color:#666;font-size:12px;text-align:center;margin-bottom:20px;">
+  Three equip slots modify the avatar: Weapon (pixel overlay), Armor (border override), Accessory (tint/effect).
+</p>
+<div class="row" id="loot"></div>
+
+<h2>Battle States</h2>
+<p style="color:#666;font-size:12px;text-align:center;margin-bottom:20px;">
+  Avatars visually reflect combat results — damage mutes colors, streaks add fire.
+</p>
+<div class="row" id="states"></div>
+
+<h2>Milestone Badges</h2>
+<p style="color:#666;font-size:12px;text-align:center;margin-bottom:20px;">
+  One-time achievements shown on the agent profile card.
+</p>
+<div class="row" id="milestones" style="gap:16px;"></div>
+
+<h2>Session Card Preview</h2>
+<p style="color:#666;font-size:12px;text-align:center;margin-bottom:20px;">
+  How it all comes together on a session card in the sidebar.
+</p>
+<div id="cardpreview" style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;"></div>
+
+<script>
+const HUE = 200; // base hue for the demo agent
+
+// Base pixel pattern (5x5, symmetric)
+const basePixels = [
+  [1,0,1,0,1],
+  [1,1,1,1,1],
+  [0,1,1,1,0],
+  [1,1,0,1,1],
+  [1,0,1,0,1],
+];
+
+function makeAvatar(pixels, hue, hue2, saturation, borderClass, levelText) {
+  const wrap = document.createElement('div');
+  wrap.className = `avatar-wrap ${borderClass}`;
+  wrap.style.position = 'relative';
+
+  pixels.flat().forEach((val, i) => {
+    const px = document.createElement('div');
+    px.className = 'pixel';
+    if (val === 0) {
+      px.style.background = 'transparent';
+    } else if (val === 2 && hue2 !== null) {
+      // Secondary hue pixel
+      px.style.background = `hsl(${hue2}, ${saturation}%, 65%)`;
+    } else {
+      px.style.background = `hsl(${hue}, ${saturation}%, 65%)`;
+    }
+    wrap.appendChild(px);
+  });
+
+  if (levelText) {
+    const badge = document.createElement('span');
+    badge.className = 'level-badge';
+    badge.textContent = levelText;
+    wrap.appendChild(badge);
+  }
+
+  return wrap;
+}
+
+// === BORDERS ===
+const tiers = [
+  { name:'None', level:'Lv.1-4', cls:'border-none', color:'#888' },
+  { name:'Wood', level:'Lv.5-9', cls:'border-wood', color:'#8B6914' },
+  { name:'Bronze', level:'Lv.10-14', cls:'border-bronze', color:'#CD7F32' },
+  { name:'Iron', level:'Lv.15-19', cls:'border-iron', color:'#71797E' },
+  { name:'Silver', level:'Lv.20-29', cls:'border-silver', color:'#C0C0C0' },
+  { name:'Gold', level:'Lv.30-39', cls:'border-gold', color:'#FFD700' },
+  { name:'Platinum', level:'Lv.40-49', cls:'border-platinum', color:'#E5E4E2' },
+  { name:'Diamond', level:'Lv.50-59', cls:'border-diamond', color:'#67e8f9' },
+  { name:'Mythic', level:'Lv.60-74', cls:'border-mythic', color:'#c084fc' },
+  { name:'Legendary', level:'Lv.75-89', cls:'border-legendary', color:'#FFD700' },
+  { name:'Ascended', level:'Lv.90-99', cls:'border-ascended', color:'#f472b6' },
+  { name:'Eternal', level:'Lv.100', cls:'border-eternal', color:'#c084fc' },
+];
+
+const bordersEl = document.getElementById('borders');
+tiers.forEach(t => {
+  const div = document.createElement('div');
+  div.className = 'tier';
+  div.appendChild(makeAvatar(basePixels, HUE, null, 60, t.cls, null));
+  const name = document.createElement('div');
+  name.className = 'tier-name';
+  name.style.color = t.color;
+  name.textContent = t.name;
+  const lvl = document.createElement('div');
+  lvl.className = 'tier-level';
+  lvl.textContent = t.level;
+  div.appendChild(name);
+  div.appendChild(lvl);
+  bordersEl.appendChild(div);
+});
+
+// === EVOLUTIONS ===
+const evosEl = document.getElementById('evolutions');
+
+// Stage 1: Base (Lv.1)
+const evo1 = JSON.parse(JSON.stringify(basePixels));
+
+// Stage 2: +1 pixel (Lv.25) — light up a previously dark pixel
+const evo2 = JSON.parse(JSON.stringify(basePixels));
+evo2[2][0] = 1; // add pixel at row 2, col 0
+evo2[2][4] = 1; // symmetric
+
+// Stage 3: Secondary hue (Lv.50) — some pixels become hue2
+const evo3 = JSON.parse(JSON.stringify(evo2));
+evo3[0][0] = 2; evo3[0][4] = 2; // corners get secondary color
+evo3[3][0] = 2; evo3[3][3] = 2; // more secondary
+evo3[4][2] = 2; // center bottom
+
+// Stage 4: Saturation boost (Lv.75) — same pattern, more vivid
+const evo4 = JSON.parse(JSON.stringify(evo3));
+
+// Stage 5: Full dual-tone (Lv.100) — alternating hues
+const evo5 = JSON.parse(JSON.stringify(evo3));
+evo5[1][0] = 2; evo5[1][4] = 2;
+evo5[4][0] = 2; evo5[4][4] = 2;
+evo5[1][2] = 2;
+
+const evoStages = [
+  { pixels: evo1, hue2: null, sat: 60, border: 'border-none', label: 'Base\nLv.1', lv: '1' },
+  { pixels: evo2, hue2: null, sat: 60, border: 'border-silver', label: '+2 pixels\nLv.25', lv: '25' },
+  { pixels: evo3, hue2: 320, sat: 60, border: 'border-diamond', label: 'Dual hue\nLv.50', lv: '50' },
+  { pixels: evo4, hue2: 320, sat: 80, border: 'border-legendary', label: 'Vivid\nLv.75', lv: '75' },
+  { pixels: evo5, hue2: 320, sat: 85, border: 'border-eternal', label: 'Full dual\nLv.100', lv: '100' },
+];
+
+const evoRow = document.createElement('div');
+evoRow.className = 'evo-row';
+evoStages.forEach((stage, i) => {
+  if (i > 0) {
+    const arrow = document.createElement('span');
+    arrow.className = 'evo-arrow';
+    arrow.textContent = '→';
+    evoRow.appendChild(arrow);
+  }
+  const stageDiv = document.createElement('div');
+  stageDiv.className = 'evo-stage';
+  stageDiv.appendChild(makeAvatar(stage.pixels, HUE, stage.hue2, stage.sat, stage.border, stage.lv));
+  const label = document.createElement('div');
+  label.className = 'evo-label';
+  label.textContent = stage.label;
+  stageDiv.appendChild(label);
+  evoRow.appendChild(stageDiv);
+});
+evosEl.appendChild(evoRow);
+
+// Show a second agent with different hue evolving
+const evoRow2 = document.createElement('div');
+evoRow2.className = 'evo-row';
+evoRow2.style.marginTop = '24px';
+
+const HUE_B = 45; // warm orange agent
+const baseB = [
+  [0,1,0,1,0],
+  [1,1,1,1,1],
+  [1,0,1,0,1],
+  [1,1,1,1,1],
+  [0,1,0,1,0],
+];
+const evoB2 = JSON.parse(JSON.stringify(baseB));
+evoB2[0][0] = 1; evoB2[0][4] = 1;
+const evoB3 = JSON.parse(JSON.stringify(evoB2));
+evoB3[2][1] = 2; evoB3[2][3] = 2; evoB3[4][0] = 2; evoB3[4][4] = 2;
+const evoB4 = JSON.parse(JSON.stringify(evoB3));
+const evoB5 = JSON.parse(JSON.stringify(evoB3));
+evoB5[0][2] = 2; evoB5[1][0] = 2; evoB5[1][4] = 2; evoB5[3][0] = 2; evoB5[3][4] = 2;
+
+const evoBStages = [
+  { pixels: baseB, hue2: null, sat: 60, border: 'border-none', label: 'Base\nLv.1', lv: '1' },
+  { pixels: evoB2, hue2: null, sat: 60, border: 'border-silver', label: '+2 pixels\nLv.25', lv: '25' },
+  { pixels: evoB3, hue2: 165, sat: 60, border: 'border-diamond', label: 'Dual hue\nLv.50', lv: '50' },
+  { pixels: evoB4, hue2: 165, sat: 80, border: 'border-legendary', label: 'Vivid\nLv.75', lv: '75' },
+  { pixels: evoB5, hue2: 165, sat: 85, border: 'border-eternal', label: 'Full dual\nLv.100', lv: '100' },
+];
+
+evoBStages.forEach((stage, i) => {
+  if (i > 0) {
+    const arrow = document.createElement('span');
+    arrow.className = 'evo-arrow';
+    arrow.textContent = '→';
+    evoRow2.appendChild(arrow);
+  }
+  const stageDiv = document.createElement('div');
+  stageDiv.className = 'evo-stage';
+  stageDiv.appendChild(makeAvatar(stage.pixels, HUE_B, stage.hue2, stage.sat, stage.border, stage.lv));
+  const label = document.createElement('div');
+  label.className = 'evo-label';
+  label.textContent = stage.label;
+  stageDiv.appendChild(label);
+  evoRow2.appendChild(stageDiv);
+});
+evosEl.appendChild(evoRow2);
+
+// === DIFFERENT SEEDS AT SAME LEVEL ===
+const seedsEl = document.getElementById('seeds');
+const seedPatterns = [
+  { pixels: [[1,1,0,1,1],[0,1,1,1,0],[1,0,1,0,1],[0,1,1,1,0],[1,1,0,1,1]], hue: 280, hue2: 40 },
+  { pixels: [[1,0,1,0,1],[1,1,0,1,1],[0,1,1,1,0],[1,1,0,1,1],[1,0,1,0,1]], hue: 120, hue2: 0 },
+  { pixels: [[0,1,1,1,0],[1,0,1,0,1],[1,1,0,1,1],[1,0,1,0,1],[0,1,1,1,0]], hue: 350, hue2: 200 },
+  { pixels: [[1,1,1,1,1],[1,0,0,0,1],[1,0,1,0,1],[1,0,0,0,1],[1,1,1,1,1]], hue: 60, hue2: 180 },
+  { pixels: [[0,0,1,0,0],[0,1,1,1,0],[1,1,1,1,1],[0,1,1,1,0],[0,0,1,0,0]], hue: 200, hue2: 320 },
+  { pixels: [[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1]], hue: 30, hue2: 150 },
+];
+
+// Add secondary colors to some pixels
+seedPatterns.forEach(sp => {
+  const p = sp.pixels;
+  p[0][0] = p[0][0] ? 2 : 0;
+  p[0][4] = p[0][4] ? 2 : 0;
+  p[4][0] = p[4][0] ? 2 : 0;
+  p[4][4] = p[4][4] ? 2 : 0;
+  p[2][2] = p[2][2] ? 2 : 0;
+});
+
+seedPatterns.forEach((sp, i) => {
+  const div = document.createElement('div');
+  div.className = 'tier';
+  div.appendChild(makeAvatar(sp.pixels, sp.hue, sp.hue2, 70, 'border-diamond', '50'));
+  const name = document.createElement('div');
+  name.className = 'tier-name';
+  name.style.color = '#67e8f9';
+  name.textContent = `Agent ${i + 1}`;
+  const lvl = document.createElement('div');
+  lvl.className = 'tier-level';
+  lvl.textContent = 'Lv.50 Diamond';
+  div.appendChild(name);
+  div.appendChild(lvl);
+  seedsEl.appendChild(div);
+});
+
+// === BATTLE NAMES ===
+const namesEl = document.getElementById('names');
+const adjectives = ['Shadow','Blazing','Frozen','Silent','Rogue','Iron','Mystic','Crimson','Phantom','Void','Emerald','Thunder','Obsidian','Astral','Neon'];
+const nouns = ['Fang','Spark','Wraith','Golem','Cipher','Sentinel','Shade','Flux','Drift','Byte','Pulse','Core','Shard','Viper','Specter'];
+const titlePrefixes = ['', 'Rookie ', 'Bronze ', 'Iron ', 'Silver ', 'Gold ', 'Platinum ', 'Diamond ', 'Mythic ', 'Legendary ', 'Ascended ', 'Eternal '];
+
+for (let i = 0; i < 8; i++) {
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  const tierIdx = Math.floor(Math.random() * tiers.length);
+  const prefix = titlePrefixes[tierIdx];
+  const nameDiv = document.createElement('div');
+  nameDiv.style.cssText = `
+    padding: 6px 12px; border-radius: 6px;
+    background: var(--bg-card, #2a2a2a); border: 1px solid #333;
+    font-size: 12px; white-space: nowrap;
+  `;
+  nameDiv.innerHTML = `<span style="color:${tiers[tierIdx].color};font-weight:600">${prefix}</span><span style="color:#e0e0e0">${adj} ${noun}</span>`;
+  namesEl.appendChild(nameDiv);
+}
+
+// === EQUIPPED LOOT ITEMS ===
+const lootEl = document.getElementById('loot');
+
+function makeAvatarWithOverlay(pixels, hue, hue2, sat, borderClass, lv, overlays) {
+  const container = document.createElement('div');
+  container.style.cssText = 'position:relative;width:64px;height:64px;';
+  const av = makeAvatar(pixels, hue, hue2, sat, borderClass, lv);
+  container.appendChild(av);
+  overlays.forEach(ov => {
+    const el = document.createElement('div');
+    el.style.cssText = ov.style;
+    el.textContent = ov.text || '';
+    container.appendChild(el);
+  });
+  return container;
+}
+
+const lootItems = [
+  {
+    name: 'No Items',
+    desc: 'Base avatar',
+    overlays: [],
+    border: 'border-gold',
+  },
+  {
+    name: 'Rusty Sword',
+    desc: 'Common weapon',
+    overlays: [{ text: '⚔', style: 'position:absolute;bottom:-4px;left:-4px;font-size:16px;filter:sepia(1)brightness(0.7);z-index:10;' }],
+    border: 'border-gold',
+  },
+  {
+    name: 'Firewall Shield',
+    desc: 'Uncommon armor',
+    overlays: [],
+    border: 'border-gold',
+    extraStyle: 'box-shadow:0 0 10px 3px rgba(251,146,60,0.5),inset 0 0 8px rgba(251,146,60,0.2)!important;border-color:#fb923c!important;',
+  },
+  {
+    name: 'Debug Monocle',
+    desc: 'Common accessory',
+    overlays: [{ text: '◉', style: 'position:absolute;top:8px;right:10px;font-size:8px;color:#facc15;z-index:10;text-shadow:0 0 4px #facc15;' }],
+    border: 'border-gold',
+  },
+  {
+    name: 'Golden Keyboard',
+    desc: 'Uncommon weapon',
+    overlays: [{ text: '⌨', style: 'position:absolute;bottom:-4px;left:-2px;font-size:14px;filter:saturate(2)hue-rotate(-10deg);z-index:10;' }],
+    border: 'border-gold',
+  },
+  {
+    name: 'Void Cloak',
+    desc: 'Rare accessory',
+    overlays: [],
+    border: 'border-gold',
+    extraStyle: 'filter:brightness(0.8)contrast(1.2);box-shadow:0 0 12px 4px rgba(88,28,135,0.5),0 0 24px 8px rgba(88,28,135,0.2)!important;',
+  },
+  {
+    name: 'Chromatic Shell',
+    desc: 'Rare armor',
+    overlays: [],
+    border: 'border-gold',
+    extraStyle: 'animation:chromatic 2s linear infinite!important;',
+  },
+  {
+    name: 'Excalibash',
+    desc: 'Legendary weapon',
+    overlays: [
+      { text: '🗡', style: 'position:absolute;bottom:-6px;left:-6px;font-size:18px;z-index:10;filter:drop-shadow(0 0 4px #facc15);' },
+    ],
+    border: 'border-gold',
+    extraStyle: 'box-shadow:0 0 12px 3px rgba(250,204,21,0.4)!important;',
+  },
+  {
+    name: 'Crown of Codebase',
+    desc: 'Legendary accessory',
+    overlays: [
+      { text: '👑', style: 'position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:14px;z-index:10;filter:drop-shadow(0 0 3px #FFD700);' },
+    ],
+    border: 'border-gold',
+  },
+];
+
+lootItems.forEach(item => {
+  const div = document.createElement('div');
+  div.className = 'tier';
+  const av = makeAvatarWithOverlay(basePixels, HUE, null, 60, item.border, '35', item.overlays);
+  if (item.extraStyle) {
+    av.firstChild.style.cssText += item.extraStyle;
+  }
+  div.appendChild(av);
+  const name = document.createElement('div');
+  name.className = 'tier-name';
+  name.style.color = item.desc.includes('Legendary') ? '#FFD700' : item.desc.includes('Rare') ? '#c084fc' : item.desc.includes('Uncommon') ? '#4ade80' : '#888';
+  name.textContent = item.name;
+  const desc = document.createElement('div');
+  desc.className = 'tier-level';
+  desc.textContent = item.desc;
+  div.appendChild(name);
+  div.appendChild(desc);
+  lootEl.appendChild(div);
+});
+
+// === BATTLE STATES ===
+const statesEl = document.getElementById('states');
+
+const battleStates = [
+  {
+    name: 'Normal',
+    desc: 'Default state',
+    filter: '',
+    extra: '',
+    streak: '',
+  },
+  {
+    name: 'Damaged',
+    desc: 'After a loss (60s)',
+    filter: 'filter:saturate(0.3)brightness(0.7);',
+    extra: '',
+    streak: '',
+  },
+  {
+    name: 'Streak ×2',
+    desc: '2 wins (1.5x XP)',
+    filter: '',
+    extra: '',
+    streak: '🔥2',
+  },
+  {
+    name: 'Streak ×5',
+    desc: '5 wins (2x XP)',
+    filter: '',
+    extra: '',
+    streak: '🔥5',
+  },
+  {
+    name: 'Streak ×10',
+    desc: '10 wins (3x XP)',
+    filter: '',
+    extra: 'box-shadow:0 0 10px 3px rgba(251,146,60,0.4)!important;',
+    streak: '🔥10',
+  },
+  {
+    name: 'Streak ×20',
+    desc: '20 wins (5x XP)',
+    filter: '',
+    extra: 'box-shadow:0 0 16px 5px rgba(239,68,68,0.5)!important;animation:fireGlow 0.8s ease-in-out infinite!important;',
+    streak: '🔥20',
+  },
+];
+
+battleStates.forEach(state => {
+  const div = document.createElement('div');
+  div.className = 'tier';
+  const container = document.createElement('div');
+  container.style.cssText = 'position:relative;width:64px;height:64px;';
+  const av = makeAvatar(basePixels, HUE, null, 60, 'border-gold', '35');
+  if (state.filter) av.style.cssText += state.filter;
+  if (state.extra) av.style.cssText += state.extra;
+  container.appendChild(av);
+  if (state.streak) {
+    const flame = document.createElement('div');
+    flame.style.cssText = 'position:absolute;top:-8px;left:-8px;font-size:11px;z-index:10;background:rgba(0,0,0,0.7);border-radius:4px;padding:1px 4px;';
+    flame.textContent = state.streak;
+    container.appendChild(flame);
+  }
+  div.appendChild(container);
+  const name = document.createElement('div');
+  name.className = 'tier-name';
+  name.style.color = state.name === 'Damaged' ? '#ef4444' : state.streak ? '#fb923c' : '#888';
+  name.textContent = state.name;
+  const desc = document.createElement('div');
+  desc.className = 'tier-level';
+  desc.textContent = state.desc;
+  div.appendChild(name);
+  div.appendChild(desc);
+  statesEl.appendChild(div);
+});
+
+// === MILESTONES ===
+const milestonesEl = document.getElementById('milestones');
+const milestones = [
+  { icon: '⚔', name: 'First Blood', desc: 'Win first battle' },
+  { icon: '🛡', name: 'Untouchable', desc: 'Win without damage' },
+  { icon: '🔥', name: 'Streak Master', desc: '20 win streak' },
+  { icon: '📖', name: 'Completionist', desc: 'All mob species' },
+  { icon: '🐉', name: 'Dragon Slayer', desc: 'All bosses defeated' },
+  { icon: '✨', name: 'Shiny Hunter', desc: '10 rare mobs' },
+  { icon: '👑', name: 'Centurion', desc: 'Reach Lv.100' },
+];
+
+milestones.forEach(m => {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;background:#2a2a2a;border:1px solid #333;';
+  div.innerHTML = `<span style="font-size:18px">${m.icon}</span><div><div style="font-size:12px;font-weight:600;color:#e0e0e0">${m.name}</div><div style="font-size:10px;color:#888">${m.desc}</div></div>`;
+  milestonesEl.appendChild(div);
+});
+
+// === SESSION CARD PREVIEW ===
+const cardEl = document.getElementById('cardpreview');
+
+function makeCard(opts) {
+  const card = document.createElement('div');
+  card.style.cssText = `
+    padding:10px 12px; border-radius:8px; background:#2a2a2a;
+    border:1px solid ${opts.borderColor || 'transparent'}; display:flex;
+    align-items:center; gap:10px; width:300px;
+    ${opts.glow ? 'box-shadow:' + opts.glow + ';' : ''}
+    ${opts.anim ? 'animation:' + opts.anim + ';' : ''}
+  `;
+  // Avatar
+  const avContainer = document.createElement('div');
+  avContainer.style.cssText = 'position:relative;flex-shrink:0;';
+  const av = makeAvatar(opts.pixels || basePixels, opts.hue || HUE, opts.hue2 || null, opts.sat || 60, opts.avatarBorder || 'border-none', opts.level || '1');
+  if (opts.avatarFilter) av.style.cssText += opts.avatarFilter;
+  avContainer.appendChild(av);
+  if (opts.streak) {
+    const flame = document.createElement('div');
+    flame.style.cssText = 'position:absolute;top:-6px;left:-6px;font-size:9px;z-index:10;background:rgba(0,0,0,0.7);border-radius:3px;padding:0 3px;line-height:14px;';
+    flame.textContent = opts.streak;
+    avContainer.appendChild(flame);
+  }
+  opts.itemOverlays?.forEach(ov => {
+    const el = document.createElement('div');
+    el.style.cssText = ov.style;
+    el.textContent = ov.text;
+    avContainer.appendChild(el);
+  });
+  card.appendChild(avContainer);
+  // Info
+  const info = document.createElement('div');
+  info.style.cssText = 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;';
+  info.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-weight:600;font-size:13px">${opts.name}</span>
+      <span style="color:#666;font-size:12px">⌥ main</span>
+      <div style="margin-left:auto;width:48px;height:4px;border-radius:2px;background:#3a3a3a;overflow:hidden;"><div style="width:${opts.context || 15}%;height:100%;border-radius:2px;background:#4ade80;"></div></div>
+      <span style="font-size:11px;font-weight:500;color:#4ade80;min-width:28px;text-align:right">${opts.context || 15}%</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#888;">
+      <span style="color:${opts.statusColor || '#60a5fa'};font-weight:500;display:flex;align-items:center;gap:4px;">
+        <span style="width:7px;height:7px;border-radius:50%;background:${opts.statusColor || '#60a5fa'};display:inline-block;"></span>
+        ${opts.status || 'Idle'}
+      </span>
+      <span style="color:#666">12s ago</span>
+      <span>${opts.model || 'claude-4-6-opus'}</span>
+    </div>
+  `;
+  card.appendChild(info);
+  return card;
+}
+
+// Fresh agent
+cardEl.appendChild(makeCard({
+  name: 'agent-1', level: '1', avatarBorder: 'border-none',
+  status: 'Idle', statusColor: '#60a5fa',
+}));
+
+// Mid-level with loot
+cardEl.appendChild(makeCard({
+  name: 'agent-2', level: '35', avatarBorder: 'border-gold', context: 42,
+  status: 'Thinking', statusColor: '#facc15', streak: '🔥5',
+  itemOverlays: [{ text: '⚔', style: 'position:absolute;bottom:-3px;left:-3px;font-size:12px;filter:sepia(1);z-index:10;' }],
+  borderColor: '#facc15', glow: '0 0 8px 1px rgba(250,204,21,0.3)',
+}));
+
+// High level damaged
+cardEl.appendChild(makeCard({
+  name: 'agent-3', level: '72', avatarBorder: 'border-mythic', context: 78,
+  hue2: 320, sat: 70, pixels: evo3,
+  status: 'Generating', statusColor: '#4ade80',
+  avatarFilter: 'filter:saturate(0.3)brightness(0.7);',
+  borderColor: '#4ade80', glow: '0 0 8px 1px rgba(74,222,128,0.3)',
+}));
+
+// Max level eternal
+cardEl.appendChild(makeCard({
+  name: 'agent-4', level: '100', avatarBorder: 'border-eternal', context: 91,
+  hue2: 320, sat: 85, pixels: evo5,
+  status: 'Idle', statusColor: '#60a5fa', streak: '🔥20',
+  itemOverlays: [
+    { text: '👑', style: 'position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:11px;z-index:10;filter:drop-shadow(0 0 2px #FFD700);' },
+    { text: '🗡', style: 'position:absolute;bottom:-4px;left:-4px;font-size:13px;z-index:10;filter:drop-shadow(0 0 3px #facc15);' },
+  ],
+  borderColor: 'rgba(255,255,255,0.4)', glow: '0 0 10px 2px rgba(255,255,255,0.15)',
+}))
+</script>
+
+</body>
+</html>

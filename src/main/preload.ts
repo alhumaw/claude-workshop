@@ -131,7 +131,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE),
 
   // Team management (native Claude Code teams)
-  createTeam: (params: { teamName: string; description: string; leadCwd: string; members: Array<{ name: string; model?: string; promptPath?: string }> }) =>
+  createTeam: (params: { teamName: string; description: string; leadCwd: string; members: Array<{ name: string; model?: string; promptPath?: string }>; protocolPath?: string }) =>
     ipcRenderer.invoke(IPC.TEAM_CREATE, params),
   listTeams: () =>
     ipcRenderer.invoke(IPC.TEAM_LIST),
@@ -157,6 +157,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Roles & Templates
   scanRoles: () =>
     ipcRenderer.invoke(IPC.TEAM_SCAN_ROLES),
+  scanProtocols: () =>
+    ipcRenderer.invoke(IPC.TEAM_SCAN_PROTOCOLS),
   saveTeamTemplate: (template: any) =>
     ipcRenderer.invoke(IPC.TEAM_SAVE_TEMPLATE, template),
   loadTeamTemplates: () =>

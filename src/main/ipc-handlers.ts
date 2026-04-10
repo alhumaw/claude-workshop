@@ -290,12 +290,13 @@ export function registerIpcHandlers(
 
   // Create a team — spawn the lead and tell it to create the team natively
   ipcMain.handle(IPC.TEAM_CREATE, async (_event, {
-    teamName, description, leadCwd, members,
+    teamName, description, leadCwd, members, protocolPath,
   }: {
     teamName: string;
     description: string;
     leadCwd: string;
     members: Array<{ name: string; model?: string; promptPath?: string }>;
+    protocolPath?: string;
   }) => {
     const cwd = leadCwd.startsWith('~/')
       ? leadCwd.replace('~', homedir())
@@ -329,6 +330,7 @@ export function registerIpcHandlers(
     const prompt = [
       `Create a team called "${teamName}".`,
       `Description: ${description}`,
+      protocolPath ? `IMPORTANT: First read and internalize the protocol at ${protocolPath.startsWith('~/') ? protocolPath.replace('~', homedir()) : protocolPath}. Follow it as your operating protocol for this team.` : '',
       members.length > 0
         ? `Spawn these teammates using the Agent tool: ${memberInstructions.join(', ')}. For each agent that has a role prompt, include in its spawn prompt: "Read the instructions at <path> and follow them as your role definition."`
         : '',
@@ -372,6 +374,37 @@ export function registerIpcHandlers(
         }
       }
       return roles.sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      return [];
+    }
+  });
+
+  // Scan ~/.claude/protocols/ for available protocol sets
+  ipcMain.handle(IPC.TEAM_SCAN_PROTOCOLS, async () => {
+    const protocolsDir = path.join(homedir(), '.claude', 'protocols');
+    try {
+      const { readdir } = require('fs/promises');
+      const entries = await readdir(protocolsDir, { withFileTypes: true });
+      const protocols: Array<{ name: string; path: string; files: string[] }> = [];
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const subEntries = await readdir(path.join(protocolsDir, entry.name));
+          const mdFiles = subEntries.filter((f: string) => f.endsWith('.md'));
+          if (mdFiles.length > 0) {
+            protocols.push({
+              name: entry.name,
+              path: `~/.claude/protocols/${entry.name}`,
+              files: mdFiles,
+            });
+          }
+        }
+      }
+      // Also check for top-level protocol files
+      const topLevel = entries.filter((e: any) => !e.isDirectory() && e.name.endsWith('.md')).map((e: any) => e.name);
+      if (topLevel.length > 0) {
+        protocols.unshift({ name: 'root', path: '~/.claude/protocols', files: topLevel });
+      }
+      return protocols;
     } catch {
       return [];
     }

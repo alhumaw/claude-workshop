@@ -84,6 +84,7 @@ export const IPC = {
   TEAM_LIST: 'team:list',
   TEAM_SYNC: 'team:sync',
   TEAM_SCAN_ROLES: 'team:scan-roles',
+  TEAM_SCAN_PROTOCOLS: 'team:scan-protocols',
   TEAM_SAVE_TEMPLATE: 'team:save-template',
   TEAM_LOAD_TEMPLATES: 'team:load-templates',
   TEAM_DELETE_TEMPLATE: 'team:delete-template',
