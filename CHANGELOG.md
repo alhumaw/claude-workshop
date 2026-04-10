@@ -1,107 +1,91 @@
 # Version 0.2.0
 ## Added features and functionality
++ Added: __Native agent teams__ — create teams using Claude Code's built-in TeamCreate, SendMessage, and Agent tools. Workshop auto-detects new teammates via a file watcher on `~/.claude/teams/` and gives each agent its own terminal.
+    - TeamWatcher monitors native team configs and spawns Workshop terminals for new members.
+    - Workshop kills tmux panes and respawns agents natively with `--agent-id`, `--team-name`, `--parent-session-id` flags.
+    - Lead session auto-tagged into team group.
+    - `src/main/team-watcher.ts` _(new)_
+    - `src/main/session-manager.ts`
+    - `src/main/ipc-handlers.ts`
+    - `src/main/index.ts`
+
++ Added: __Team templates__ — built-in templates for Small Coding (10 agents), Large Coding (19), Writing (8), and Research (10) teams. Custom templates can be designed and saved.
+    - `src/renderer/components/CreateTeamModal.tsx` _(new)_
+    - `src/main/ipc-handlers.ts`
+
++ Added: __CFID role prompts__ — auto-scans `~/.claude/prompts/` for agent roles (coder, reviewer, security-analyst, debugger, tester, etc.) and passes prompt paths to spawned agents. Template designer lets you compose teams from discovered roles.
+    - `src/main/ipc-handlers.ts`
+
++ Added: __Smart team grid view__ — click a team header to see all agents simultaneously: 1 agent full-screen, 2 side-by-side, 3 in a 1+2 layout, 4 in a 2x2 grid, 5+ paginated in groups of 4. Click the header again to cycle pages.
+    - `src/renderer/components/TerminalManager.tsx`
+
++ Added: __Team management UI__ — collapse teams with `−`, delete with `×` (confirmation prompt). Shell panel auto-hides in team view for more space.
+    - `src/renderer/components/Sidebar.tsx`
+    - `src/renderer/components/Layout.tsx`
+
 + Added: __Permission prompt detection__ — session cards glow purple when Claude Code is waiting for user approval.
     - Detects `"Do you want to..."` permission prompts, interactive numbered menus, and `AskUserQuestion` skill prompts.
     - Status label changes to "Waiting" with purple dot and animated glow border.
     - `src/main/parsers/index.ts`
     - `src/renderer/components/SessionCard.tsx`
     - `src/renderer/index.css`
-    - `src/shared/types.ts`
 
-+ Added: __Scroll-to-bottom overlay button__ — a `↓` button appears at the bottom-right of the terminal when scrolled up, clicking it jumps to the latest output.
-    - `src/renderer/components/TerminalManager.tsx`
-
-+ Added: __User shell terminal panel__ — a general-purpose shell terminal at the bottom of the left pane for running commands without leaving the app.
-    - Multiple tabbed terminals with `+` to add and `×` to close. Closing the last tab hides the panel; toggling it back spawns a fresh terminal.
-    - Resizable via horizontal drag handle between Claude terminals and shell panel.
-    - Toggle visibility from the tab bar button or `Cmd+\`` keyboard shortcut.
-    - Nerd Font support (MesloLGS NF, Hack Nerd Font, FiraCode Nerd Font) for Powerlevel9k/10k prompts.
-    - Shell PTY killed on app quit.
++ Added: __User shell terminal panel__ — tabbed shell terminals at the bottom of the left pane.
+    - Multiple tabs with `+` to add and `×` to close. Closing the last tab hides the panel.
+    - Resizable via horizontal drag handle. Toggle with tab bar button or `Cmd+\``.
+    - Nerd Font support for Powerlevel9k/10k prompts.
     - `src/main/shell-terminal.ts` _(new)_
     - `src/renderer/components/ShellPanel.tsx` _(new)_
-    - `src/renderer/components/Layout.tsx`
-    - `src/renderer/components/TabBar.tsx`
-    - `src/main/ipc-handlers.ts`
-    - `src/main/preload.ts`
-    - `src/main/index.ts`
-    - `src/shared/types.ts`
-    - `src/renderer/App.tsx`
 
-+ Added: __Selected + working visual distinction__ — active session cards now show a white border and white glow, clearly distinct from status-colored borders on inactive working cards.
++ Added: __Scroll-to-bottom overlay button__ — `↓` button appears at bottom-right of terminal when scrolled up.
+    - `src/renderer/components/TerminalManager.tsx`
+
++ Added: __Drag-to-reorder session cards__ — click and drag to reorder. Gold indicator line shows drop position.
+    - `src/renderer/components/Sidebar.tsx`
+    - `src/renderer/stores/session-store.ts`
+
++ Added: __Auto-focus terminal on session switch__ — clicking a session card focuses the terminal immediately.
+    - `src/renderer/components/TerminalManager.tsx`
+
++ Added: __Git branch from filesystem__ — reads branch via `git rev-parse` instead of parsing terminal output.
+    - `src/main/session-manager.ts`
+
++ Added: __Selected session distinction__ — white border and glow for the active session card.
     - `src/renderer/components/SessionCard.tsx`
 
-+ Added: __Drag-to-reorder session cards__ — click and drag session cards in the sidebar to reorder them. Dragged card fades, gold indicator line shows drop position. Order preserved across status polling.
-    - `src/renderer/components/Sidebar.tsx`
-    - `src/renderer/stores/session-store.ts`
-
-+ Added: __Auto-focus terminal on session switch__ — clicking a session card in the sidebar automatically focuses the terminal so you can start typing immediately.
-    - `src/renderer/components/TerminalManager.tsx`
-
-+ Added: __Git branch from filesystem__ — branch name is now read directly via `git rev-parse` in the session's working directory instead of parsing pipe-delimited text from the terminal buffer. Updates live when the agent switches branches.
-    - `src/main/session-manager.ts`
-
-+ Added: __Agent teams__ — create teams with a lead and teammates that communicate via inbox files. Lead gets explicit per-teammate inbox commands. Teammates show grouped in the sidebar.
-    - `src/main/team-manager.ts` _(new)_
-    - `src/main/inbox-relay.ts` _(new)_
-    - `src/renderer/components/CreateTeamModal.tsx` _(new)_
-    - `src/renderer/components/AddTeamMemberModal.tsx` _(new)_
-    - `src/renderer/components/TeamSection.tsx` _(new)_
-    - `src/main/session-manager.ts`
-    - `src/main/ipc-handlers.ts`
-    - `src/renderer/components/Sidebar.tsx`
-    - `src/renderer/stores/session-store.ts`
-    - `src/shared/types.ts`
-
-+ Added: __MemPalace integration (optional)__ — when [MemPalace](https://github.com/milla-jovovich/mempalace) is installed, team agents automatically get 19 MCP tools for shared persistent memory. Workshop auto-detects `pipx`, `uv tool`, or global installs and configures everything on team creation. Mempalace references in agent prompts are conditional — no errors if not installed.
-    - `src/main/team-manager.ts`
-    - `src/main/session-manager.ts`
-
 ## Issues resolved
-+ Fixed: __ANSI stripping drops all content__ — Claude Code uses `\x1b[1C` (cursor forward) instead of literal spaces between words and `\r\r\n` (double CR + LF) line endings. The `stripAnsi` function now replaces cursor-forward sequences with spaces and strips trailing carriage returns correctly.
++ Fixed: __ANSI stripping drops all content__ — Claude Code uses `\x1b[1C` (cursor forward) instead of spaces and `\r\r\n` line endings. `stripAnsi` now handles both correctly.
     - `src/main/parsers/index.ts`
 
-+ Fixed: __Status shows "idle" during thinking__ — `parseStatus` checked for the `❯` idle prompt before checking for spinner activity. Reordered so spinner/activity detection takes precedence over idle prompt detection.
++ Fixed: __Status shows "idle" during thinking__ — reordered `parseStatus` so spinner detection takes precedence over idle prompt detection.
     - `src/main/parsers/index.ts`
 
-+ Fixed: __Missing spinner characters__ — Claude Code cycles through spinner glyphs (`·`, `✻`, `✽`, etc.) that were not in the detection set. Expanded `SPINNER_CHARS` with additional dingbat/flower/star characters.
++ Fixed: __Missing spinner characters__ — expanded `SPINNER_CHARS` with `·`, `✻`, `✽`, and other dingbat glyphs.
     - `src/main/parsers/index.ts`
 
-+ Fixed: __Parser buffer window too small__ — `parseStatus` and `parseAwaitingApproval` used `slice(-800)` which was insufficient for ANSI-heavy terminal output. Bumped all parsers to `slice(-3000)` consistently.
++ Fixed: __Parser buffer window too small__ — bumped all parsers from `slice(-800)` to `slice(-3000)`.
     - `src/main/parsers/index.ts`
 
-+ Fixed: __Stale permission prompts cause false positives__ — after a user approves a prompt, the old text lingered in the buffer and continued triggering the "Waiting" state. Now scans only the bottom 8 non-empty lines so any new output immediately clears the detection.
++ Fixed: __Stale permission prompts cause false positives__ — now scans only the bottom 8 non-empty lines.
     - `src/main/parsers/index.ts`
 
-+ Fixed: __Session name and avatar lost on restart__ — renames and avatar changes only lived in the renderer's Zustand store and were never synced to the main process. On quit, `saveSessions` read stale data. Added `session:rename` and `session:update-avatar` IPC channels to keep main process in sync. Also fixed restore to pass `avatarSeed` directly to `spawn()`.
++ Fixed: __Session name and avatar lost on restart__ — added IPC sync between renderer and main process.
     - `src/main/session-manager.ts`
     - `src/main/ipc-handlers.ts`
-    - `src/main/preload.ts`
-    - `src/main/index.ts`
     - `src/renderer/stores/session-store.ts`
-    - `src/renderer/App.tsx`
-    - `src/shared/types.ts`
 
-+ Fixed: __Terminal scrolls to top on resize__ — `fit()` resets the xterm viewport position. Now always scrolls to bottom after fitting with a re-entrancy guard to prevent double-fire from ResizeObserver. Applies to both window resize and tab switching.
++ Fixed: __Terminal scrolls to top on resize__ — added re-entrancy guard and scroll-to-bottom after `fit()`.
     - `src/renderer/components/TerminalManager.tsx`
 
-+ Fixed: __Terminal jumps to top on new data__ — added scroll pinning so the viewport stays at the bottom when new PTY data arrives, unless the user has intentionally scrolled up.
-    - `src/renderer/components/TerminalManager.tsx`
-
-+ Fixed: __Context reverts after /clear on restart__ — `/clear` resets the in-memory context but the session ID was preserved, causing `--resume` to reload pre-clear history. Now detects `/clear` and assigns a new session ID so the next restore starts fresh.
++ Fixed: __Context reverts after /clear on restart__ — detects `/clear` and assigns a new session ID.
     - `src/main/session-manager.ts`
 
-+ Fixed: __Branch field shows non-branch text__ — `parseBranch` matched any `| text |` in the terminal buffer, picking up table cells, model names, and other pipe-delimited output. Replaced with direct `git rev-parse` from the session's working directory.
-    - `src/main/session-manager.ts`
-
-+ Fixed: __Team lead can't message teammates__ — the lead's injected prompt used a generic `{name}` placeholder for inbox paths. Replaced with explicit per-teammate commands so the lead knows exactly how to reach each agent.
++ Fixed: __Branch field shows non-branch text__ — replaced buffer parsing with `git rev-parse`.
     - `src/main/session-manager.ts`
 
 ## Other
-+ Aligned `?`, `⚙`, and `+` header buttons — normalized to 24x24 flex-centered boxes for consistent alignment.
-    - `src/renderer/components/Sidebar.tsx`
-
-+ Aligned context bars across session cards — gave the context bar a fixed width and made session names truncate with ellipsis (max 50%) so bars line up at the same right edge regardless of name length.
-    - `src/renderer/components/SessionCard.tsx`
++ Aligned header buttons and context bars across session cards.
++ Removed custom inbox relay and prompt injection in favor of native Claude Code team messaging.
 
 # Version 0.1.0
 ## Added features and functionality

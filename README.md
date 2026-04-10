@@ -11,19 +11,19 @@ Claude Workshop gives you a single window to launch, switch between, and monitor
 ## Features
 
 - **Multiple sessions** — run as many Claude Code agents as you need, each with its own terminal and working directory
-- **Agent teams** — create teams with a lead and teammates that communicate via inbox files, with optional shared memory
-- **Session sidebar** — switch between agents instantly, see live status, model, context, and cost at a glance
+- **Native agent teams** — create teams that use Claude Code's built-in TeamCreate, SendMessage, and Agent tools. Workshop auto-detects teammates and gives each one its own terminal
+- **Team templates** — spawn a coding team, research team, or writing team from built-in templates. Design your own templates from discovered roles
+- **CFID role prompts** — auto-scans `~/.claude/prompts/` for agent roles (coder, reviewer, security-analyst, etc.) and passes them to spawned agents
+- **Smart grid view** — click a team to see all agents at once: 2 side-by-side, 3 in a 1+2 layout, 4 in a 2x2 grid, 5+ paginated
 - **Permission prompt detection** — session cards glow purple when an agent is waiting for user approval
 - **Shell terminal panel** — tabbed shell terminals at the bottom of the window for running commands without leaving the app
+- **Session sidebar** — switch between agents instantly, see live status, model, context, and cost at a glance
 - **Pixel avatars** — each session gets a unique generated avatar so you can tell them apart
 - **Drag-to-reorder** — rearrange session cards in the sidebar by dragging
-- **Live title bar** — model, context size, cost, branch, and time since last activity for the active session
 - **Persistent sessions** — sessions are saved and restored between launches using `claude --resume`
 - **Full terminal** — complete xterm-compatible terminal per session with Nerd Font support
 - **Handoff & Reset** — when context fills up, Claude writes a handoff summary and a fresh session picks up where it left off
-- **Fresh Session** — spawn a new session in the same working directory without closing the old one
-- **Generate Mindmap** — export any session's conversation to an interlinked Obsidian vault folder; opens as a graph mindmap in Obsidian
-- **Settings** — configure your Obsidian vault path via the gear icon in the sidebar
+- **Generate Mindmap** — export any session's conversation to an interlinked Obsidian vault
 - **Keyboard shortcuts** — `Cmd+N` new session, `Cmd+W` close, `Cmd+[` / `Cmd+]` navigate, `` Cmd+` `` toggle shell
 
 ## Requirements
@@ -64,45 +64,34 @@ Output is in `out/make/`.
 ### Teams
 
 1. Click **T+** in the sidebar to create a team
-2. Name the team, set a working directory, and configure a lead agent
-3. Add teammate agents — each gets its own session and inbox
-4. The lead communicates with teammates via inbox files that Workshop auto-delivers
-5. Teammates show grouped under their team in the sidebar
+2. Pick a template (Small Coding, Large Coding, Writing, Research) or build a custom team
+3. Set a working directory — the lead agent spawns and creates the team using Claude Code's native team infrastructure
+4. Workshop auto-detects teammates as they join and gives each one its own terminal
+5. Click the team header in the sidebar to see all agents in a split grid view
+6. Use **−** to collapse a team or **×** to delete it and kill all agents
+
+### Agent Roles
+
+Place role prompts at `~/.claude/prompts/{role-name}/PROMPT.md`. Workshop auto-discovers them in the template designer. Available CFID roles include: coder, code-reviewer, security-analyst, debugger, tester, technical-writer, and more.
 
 ### Shell Terminal
 
 A tabbed shell panel lives at the bottom of the window:
 - Toggle with the **>_ Terminal** button in the tab bar or `` Cmd+` ``
-- Click **+** to add tabs, **x** to close them
+- Click **+** to add tabs, **×** to close them
 - Closing the last tab hides the panel
+- Auto-hides when viewing a team grid
+
+### Handoff
+
+When a session is running low on context, click **Handoff & Reset** in the Toolkit panel. Claude will write a structured summary of the current work, spawn a fresh session, and feed it the handoff — continuing seamlessly from where it left off.
 
 ### Obsidian Mindmap
 
 1. Click the gear icon in the sidebar and set your Obsidian vault path
 2. In the Toolkit panel, click **Generate Mindmap**
 3. Pick the project directory you want mapped
-4. Claude reads the source files and writes interlinked `.md` notes to a dated folder in your vault
-5. Open Obsidian and switch to Graph View to see the mindmap
-
-### Handoff
-
-When a session is running low on context, click **Handoff & Reset** in the Toolkit panel. Claude will write a structured summary of the current work, spawn a fresh session, and feed it the handoff — continuing seamlessly from where it left off.
-
-## Optional: MemPalace Integration
-
-[MemPalace](https://github.com/milla-jovovich/mempalace) provides shared persistent memory for agent teams. When installed, team agents automatically get access to 19 MCP tools for searching past conversations, writing diary entries, and sharing knowledge across sessions.
-
-**Install:**
-
-```bash
-pipx install mempalace
-```
-
-That's it. Workshop auto-detects the installation and configures everything when you create a team. No manual MCP setup required.
-
-MemPalace is entirely optional — teams work without it using the built-in inbox messaging system. If mempalace isn't installed, agents simply don't get the memory tools and no errors are thrown.
-
-Supports `pipx`, `uv tool install`, or global `pip` installs. See the [MemPalace README](https://github.com/milla-jovovich/mempalace) for details.
+4. Open Obsidian and switch to Graph View to see the mindmap
 
 ## Keyboard Shortcuts
 
