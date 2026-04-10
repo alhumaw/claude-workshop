@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Battle System — Wiki</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 0; line-height: 1.6; }
+  a { color: #60a5fa; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Nav */
+  nav { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #1a1a1a; border-right: 1px solid #333; padding: 20px 16px; overflow-y: auto; z-index: 100; }
+  nav h2 { font-size: 14px; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  nav a { display: block; padding: 6px 8px; border-radius: 4px; color: #ccc; font-size: 13px; margin-bottom: 2px; }
+  nav a:hover { background: #2a2a2a; color: #fff; text-decoration: none; }
+  nav .section-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 4px; }
+
+  /* Main */
+  main { margin-left: 220px; padding: 40px 60px; max-width: 900px; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  h2 { font-size: 20px; margin-top: 48px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #333; color: #fff; }
+  h3 { font-size: 15px; margin-top: 24px; margin-bottom: 8px; color: #ccc; }
+  p { margin-bottom: 12px; color: #bbb; font-size: 14px; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 32px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: #1a1a1a; color: #888; font-weight: 600; border-bottom: 1px solid #333; }
+  td { padding: 8px 12px; border-bottom: 1px solid #222; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* Cards */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; }
+  .card h4 { font-size: 14px; margin-bottom: 6px; }
+  .card p { font-size: 12px; color: #888; margin-bottom: 0; }
+  .card .tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-bottom: 8px; }
+
+  /* Type colors */
+  .type-thinker { color: #60a5fa; }
+  .type-generator { color: #ef4444; }
+  .type-researcher { color: #4ade80; }
+  .type-debugger { color: #facc15; }
+
+  /* Rarity */
+  .rarity-common { color: #888; }
+  .rarity-uncommon { color: #4ade80; }
+  .rarity-rare { color: #c084fc; }
+  .rarity-legendary { color: #FFD700; }
+
+  /* Biome colors */
+  .biome-strip { display: flex; gap: 0; margin: 16px 0; border-radius: 6px; overflow: hidden; }
+  .biome-strip .biome { flex: 1; padding: 8px 4px; text-align: center; font-size: 9px; font-weight: 600; min-height: 60px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+  .biome-strip .biome .name { font-size: 10px; }
+  .biome-strip .biome .level { font-size: 8px; opacity: 0.7; }
+
+  /* Stat bar */
+  .stat-bar { height: 8px; border-radius: 4px; background: #2a2a2a; overflow: hidden; margin: 4px 0; }
+  .stat-bar .fill { height: 100%; border-radius: 4px; }
+
+  /* Pixel avatar demo */
+  .avatar-demo { display: inline-grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); width: 40px; height: 40px; border-radius: 8px; padding: 3px; gap: 1px; vertical-align: middle; }
+  .avatar-demo .px { border-radius: 1px; }
+
+  /* Matchup table */
+  .matchup td, .matchup th { text-align: center; width: 20%; }
+  .matchup .advantage { color: #4ade80; font-weight: 600; }
+  .matchup .disadvantage { color: #ef4444; }
+  .matchup .neutral { color: #888; }
+
+  /* Callout */
+  .callout { background: rgba(96, 165, 250, 0.08); border-left: 3px solid #60a5fa; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 13px; }
+  .callout.warning { background: rgba(250, 204, 21, 0.08); border-left-color: #facc15; }
+  /* Border tier animations */
+  @keyframes silverShine { 0%,100%{box-shadow:0 0 6px 2px rgba(192,192,192,0.25)} 50%{box-shadow:0 0 10px 3px rgba(192,192,192,0.45)} }
+  @keyframes goldShimmer { 0%,100%{box-shadow:0 0 8px 2px rgba(255,215,0,0.3);border-color:#FFD700} 50%{box-shadow:0 0 14px 4px rgba(255,215,0,0.5);border-color:#FFC107} }
+  @keyframes platGlow { 0%,100%{box-shadow:0 0 10px 3px rgba(229,228,226,0.3)} 50%{box-shadow:0 0 16px 5px rgba(229,228,226,0.55)} }
+  @keyframes gradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  @keyframes diamPulse { 0%,100%{box-shadow:0 0 12px 3px rgba(103,232,249,0.35)} 50%{box-shadow:0 0 18px 5px rgba(103,232,249,0.55)} }
+  @keyframes mythPulse { 0%,100%{box-shadow:0 0 14px 4px rgba(192,132,252,0.4)} 50%{box-shadow:0 0 20px 6px rgba(244,114,182,0.5)} }
+  @keyframes legPulse { 0%,100%{box-shadow:0 0 16px 5px rgba(255,215,0,0.4),0 0 30px 10px rgba(255,165,0,0.2)} 50%{box-shadow:0 0 24px 8px rgba(255,215,0,0.6),0 0 40px 15px rgba(255,165,0,0.35)} }
+  @keyframes ascPulse { 0%,100%{box-shadow:0 0 18px 6px rgba(192,132,252,0.4)} 50%{box-shadow:0 0 28px 10px rgba(244,114,182,0.5)} }
+  @keyframes etSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes etPulse { 0%,100%{box-shadow:0 0 20px 8px rgba(192,132,252,0.5),0 0 40px 16px rgba(96,165,250,0.3)} 50%{box-shadow:0 0 30px 12px rgba(244,114,182,0.6),0 0 55px 20px rgba(74,222,128,0.35)} }
+  @keyframes shinyShimmer { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.4)} }
+
+  .demo-avatar { display: inline-grid; grid-template-columns: repeat(5,1fr); grid-template-rows: repeat(5,1fr); width: 56px; height: 56px; border-radius: 10px; padding: 4px; gap: 2px; position: relative; }
+  .demo-avatar .px { border-radius: 2px; }
+  .demo-avatar .lvl { position: absolute; bottom: -3px; right: -3px; font-size: 8px; font-weight: 700; color: #fff; background: rgba(0,0,0,0.8); border-radius: 3px; padding: 0 3px; line-height: 14px; }
+
+  /* Border classes for demos */
+  .demo-none { background: hsl(200,30%,25%); }
+  .demo-rookie { background: hsl(200,30%,25%); border: 2px solid #8B6914; }
+  .demo-bronze { background: hsl(200,30%,25%); border: 2px solid #CD7F32; box-shadow: 0 0 4px 1px rgba(205,127,50,0.3); }
+  .demo-iron { background: hsl(200,30%,25%); border: 2px solid #71797E; box-shadow: 0 0 4px 1px rgba(113,121,126,0.3); }
+  .demo-silver { background: hsl(200,30%,25%); border: 2px solid #C0C0C0; animation: silverShine 3s ease-in-out infinite; }
+  .demo-gold { background: hsl(200,30%,25%); border: 2px solid #FFD700; animation: goldShimmer 2.5s ease-in-out infinite; }
+  .demo-platinum { background: hsl(200,30%,25%); border: 2px solid #E5E4E2; animation: platGlow 2s ease-in-out infinite; }
+  .demo-diamond { background: hsl(200,30%,25%); border: 2px solid transparent; background-clip: padding-box; animation: diamPulse 3s ease-in-out infinite; }
+  .demo-diamond::before { content:''; position:absolute; inset:-2px; border-radius:12px; background:linear-gradient(135deg,#67e8f9,#a5f3fc,#22d3ee,#06b6d4,#67e8f9); background-size:200% 200%; z-index:-1; animation:gradShift 3s linear infinite; }
+  .demo-mythic { background: hsl(200,30%,25%); border: 2px solid transparent; background-clip: padding-box; animation: mythPulse 2s ease-in-out infinite; }
+  .demo-mythic::before { content:''; position:absolute; inset:-2px; border-radius:12px; background:linear-gradient(135deg,#c084fc,#f472b6,#facc15,#4ade80,#60a5fa,#c084fc); background-size:300% 300%; z-index:-1; animation:gradShift 4s linear infinite; }
+  .demo-legendary { background: hsl(200,30%,25%); border: 2px solid transparent; background-clip: padding-box; animation: legPulse 1.5s ease-in-out infinite; }
+  .demo-legendary::before { content:''; position:absolute; inset:-3px; border-radius:13px; background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700,#FFFACD,#FFD700); background-size:200% 200%; z-index:-1; animation:gradShift 2s linear infinite; }
+  .demo-ascended { background: hsl(200,30%,25%); border: 2px solid transparent; background-clip: padding-box; animation: ascPulse 1.2s ease-in-out infinite; }
+  .demo-ascended::before { content:''; position:absolute; inset:-3px; border-radius:13px; background:linear-gradient(135deg,#c084fc,#f472b6,#fb923c,#facc15,#4ade80,#60a5fa,#c084fc); background-size:400% 400%; z-index:-1; animation:gradShift 3s linear infinite; }
+  .demo-eternal { background: hsl(200,30%,25%); border: 3px solid transparent; background-clip: padding-box; animation: etPulse 1s ease-in-out infinite; }
+  .demo-eternal::before { content:''; position:absolute; inset:-4px; border-radius:14px; background:conic-gradient(from 0deg,#c084fc,#f472b6,#fb923c,#facc15,#4ade80,#22d3ee,#60a5fa,#c084fc); z-index:-1; animation:etSpin 2s linear infinite; }
+  .demo-eternal::after { content:''; position:absolute; inset:-8px; border-radius:18px; background:conic-gradient(from 180deg,rgba(192,132,252,0.3),rgba(244,114,182,0.3),rgba(250,204,21,0.3),rgba(74,222,128,0.3),rgba(96,165,250,0.3),rgba(192,132,252,0.3)); z-index:-2; animation:etSpin 3s linear infinite reverse; filter:blur(6px); }
+
+  .demo-dead { filter: saturate(0) brightness(0.5); }
+  .shiny-px { animation: shinyShimmer 2s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<nav>
+  <h2>Battle Wiki</h2>
+  <a href="#overview">Overview</a>
+  <a href="#core-loop">Core Loop</a>
+  <div class="section-label">Agents</div>
+  <a href="#types">Agent Types</a>
+  <a href="#stats">Stats & Ratings</a>
+  <a href="#shiny">Shiny Agents</a>
+  <a href="#evolution">Avatar Evolution</a>
+  <a href="#names">Battle Names</a>
+  <div class="section-label">Combat</div>
+  <a href="#battles">Battle System</a>
+  <a href="#matchups">Type Matchups</a>
+  <a href="#crits">Critical Hits</a>
+  <a href="#bosses">Boss Fights</a>
+  <a href="#morale">Morale & Permadeath</a>
+  <div class="section-label">Progression</div>
+  <a href="#xp">XP & Leveling</a>
+  <a href="#biomes">Biomes</a>
+  <a href="#borders">Border Tiers</a>
+  <a href="#streaks">Win Streaks</a>
+  <div class="section-label">Collection</div>
+  <a href="#loot">Loot System</a>
+  <a href="#mobs">Mob Bestiary</a>
+  <a href="#milestones">Milestones</a>
+  <a href="#halloffame">Hall of Fame</a>
+</nav>
+
+<main>
+
+<h1>Agent Battle System</h1>
+<p class="subtitle">A passive autobattler where Claude Code agents fight procedurally-generated mobs as they work. Zero player interaction — it's a background progression system.</p>
+
+<!-- OVERVIEW -->
+<h2 id="overview">Overview</h2>
+<p>Every standalone Claude Code session has an agent avatar that automatically battles programming-themed mobs as the agent works. Battles trigger from terminal output, play out instantly, and reward XP and loot. The goal: reach Level 100 — the <strong>Eternal</strong> tier.</p>
+
+<div class="callout">
+  <strong>Standalone sessions only.</strong> Team agents (teamId set) are excluded from the battle system entirely.
+</div>
+
+<!-- CORE LOOP -->
+<h2 id="core-loop">Core Loop</h2>
+<p>Agent works → generates terminal output → gains XP → levels up → battle triggers → auto-resolves → loot/cosmetics → repeat</p>
+<p>XP comes from <strong>bytes of terminal output</strong> while the agent is actively generating (1 XP per 2 bytes). Battles trigger after accumulating 10,000–25,000 XP since the last battle.</p>
+
+<!-- AGENT TYPES -->
+<h2 id="types">Agent Types</h2>
+<p>Every agent has a type derived from their dominant stat. The dominant stat gets <strong>+25% bonus</strong>, the weakest stat gets <strong>-15% penalty</strong>.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <div class="tag" style="background: rgba(96,165,250,0.15); color: #60a5fa;">DEF Dominant</div>
+    <h4 class="type-thinker">Thinker</h4>
+    <p><strong>Passive: Overthink</strong><br>20% chance to negate incoming hit and reflect 50% of mob's ATK back as damage.</p>
+    <p style="margin-top:8px">Survival rate: ~11%</p>
+  </div>
+  <div class="card">
+    <div class="tag" style="background: rgba(239,68,68,0.15); color: #ef4444;">ATK Dominant</div>
+    <h4 class="type-generator">Generator</h4>
+    <p><strong>Passive: Burst Output</strong><br>15% chance to hit twice in one turn (double damage). Stacks with crits.</p>
+    <p style="margin-top:8px">Survival rate: ~14%</p>
+  </div>
+  <div class="card">
+    <div class="tag" style="background: rgba(74,222,128,0.15); color: #4ade80;">HP Dominant</div>
+    <h4 class="type-researcher">Researcher</h4>
+    <p><strong>Passive: Deep Dive</strong><br>Regenerates 1% max HP at the end of each combat round.</p>
+    <p style="margin-top:8px">Survival rate: ~14%</p>
+  </div>
+  <div class="card">
+    <div class="tag" style="background: rgba(250,204,21,0.15); color: #facc15;">SPD Dominant</div>
+    <h4 class="type-debugger">Debugger</h4>
+    <p><strong>Passive: Breakpoint</strong><br>25% chance to stun mob (skip their turn) and counter-attack for 50% of mob's ATK.</p>
+    <p style="margin-top:8px">Survival rate: ~8%</p>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>Tied stats:</strong> If two stats tie for highest, type is determined by priority: ATK > SPD > DEF > HP.
+</div>
+
+<!-- STATS -->
+<h2 id="stats">Stats & Ratings</h2>
+<p>Base stats are deterministic from your <code>avatarSeed</code>. Each stat rolls independently with a weighted distribution skewed toward average.</p>
+
+<table>
+  <tr><th>Rating</th><th>Multiplier Range</th><th>Probability</th></tr>
+  <tr><td style="color:#ef4444">Poor</td><td>0.75 – 0.90</td><td>40%</td></tr>
+  <tr><td style="color:#888">Average</td><td>0.90 – 1.05</td><td>30%</td></tr>
+  <tr><td style="color:#4ade80">Good</td><td>1.05 – 1.18</td><td>20%</td></tr>
+  <tr><td style="color:#60a5fa">Great</td><td>1.18 – 1.28</td><td>9%</td></tr>
+  <tr><td style="color:#FFD700">Elite</td><td>1.28 – 1.35</td><td>1%</td></tr>
+</table>
+
+<h3>Progressive Reveal</h3>
+<p>Stats are hidden at spawn. You learn what you rolled through battle.</p>
+<table>
+  <tr><th>Battles</th><th>Revealed</th></tr>
+  <tr><td>0</td><td>Shiny status visible (can't hide the sparkle)</td></tr>
+  <tr><td>1</td><td>Agent type revealed</td></tr>
+  <tr><td>5</td><td>HP rating shown</td></tr>
+  <tr><td>10</td><td>ATK rating shown</td></tr>
+  <tr><td>15</td><td>DEF rating shown</td></tr>
+  <tr><td>25</td><td>SPD rating shown — all stats visible</td></tr>
+</table>
+
+<!-- SHINY -->
+<h2 id="shiny">Shiny Agents</h2>
+<p><strong>1 in 64 chance</strong> (~1.6%) on session creation. Determined by seed hash.</p>
+
+<table>
+  <tr><th>Feature</th><th>Effect</th></tr>
+  <tr><td>Stat Boost</td><td>All base stats × <strong>1.15x</strong></td></tr>
+  <tr><td>Visual</td><td>Pixels shimmer with alternating brightness</td></tr>
+  <tr><td>Secondary Hue</td><td>Dual-color pixels from Lv.1 (non-shiny wait until Lv.50)</td></tr>
+  <tr><td>Badge</td><td>✦ next to level badge</td></tr>
+  <tr><td>Name</td><td>Prefixed with "Shiny" (e.g., <em>Shiny Blazing Cipher</em>)</td></tr>
+  <tr><td>Survival</td><td>~79% survive to Lv.100 (vs ~10% non-shiny)</td></tr>
+</table>
+
+<div id="shiny-demos" style="display:flex;align-items:center;gap:24px;margin:24px 0;"></div>
+
+<!-- EVOLUTION -->
+<h2 id="evolution">Avatar Evolution</h2>
+<p>At level milestones, the avatar's pixel art permanently mutates. <strong>Mutations are permanent once earned</strong> — deleveling doesn't remove them.</p>
+
+<table>
+  <tr><th>Level</th><th>Mutation</th></tr>
+  <tr><td>Lv.25</td><td>+2 extra pixels light up in the grid</td></tr>
+  <tr><td>Lv.50</td><td>~30% of pixels switch to secondary hue (hue + 120°)</td></tr>
+  <tr><td>Lv.75</td><td>Saturation boost: 60% → 80% on all pixels</td></tr>
+  <tr><td>Lv.100</td><td>Full dual-tone: alternating pixels use secondary hue</td></tr>
+</table>
+
+<div id="evo-demos" style="display:flex;align-items:center;gap:16px;margin:24px 0;flex-wrap:wrap;"></div>
+
+<!-- BATTLE NAMES -->
+<h2 id="names">Battle Names</h2>
+<p>Each agent gets a deterministic two-part name from their seed: <strong>Adjective + Noun</strong>.</p>
+<p><strong>Adjectives:</strong> Shadow, Blazing, Frozen, Silent, Rogue, Iron, Mystic, Crimson, Phantom, Void, Emerald, Thunder, Obsidian, Astral, Neon</p>
+<p><strong>Nouns:</strong> Fang, Spark, Wraith, Golem, Cipher, Sentinel, Shade, Flux, Drift, Byte, Pulse, Core, Shard, Viper, Specter</p>
+<p>Examples: <em>Blazing Cipher</em>, <em>Void Sentinel</em>, <em>Neon Wraith</em></p>
+
+<!-- BATTLE SYSTEM -->
+<h2 id="battles">Battle System</h2>
+<p>Turn-based, fully automatic. One damage formula, no layered multipliers.</p>
+
+<h3>Damage Formula</h3>
+<p><code>damage = max(1, floor((ATK - DEF/2) × typeMultiplier × random(0.8, 1.2)))</code></p>
+
+<h3>Turn Order</h3>
+<p>Higher SPD goes first. If the SPD difference is >50%, the faster combatant gets <strong>2 hits per round</strong>.</p>
+
+<h3>Dynamic Difficulty</h3>
+<p>Mob levels adjust based on your win rate:</p>
+<table>
+  <tr><th>Win Rate</th><th>Mob Level</th></tr>
+  <tr><td>&gt;90%</td><td>4–11 levels <strong>above</strong> agent</td></tr>
+  <tr><td>87–90%</td><td>3–7 levels <strong>above</strong> agent</td></tr>
+  <tr><td>75–87%</td><td>At agent level</td></tr>
+  <tr><td>&lt;75%</td><td>Below agent level (scaled gap)</td></tr>
+</table>
+
+<!-- MATCHUPS -->
+<h2 id="matchups">Type Matchups</h2>
+<table class="matchup">
+  <tr><th>Attacker ↓</th><th class="type-thinker">Thinker</th><th class="type-generator">Generator</th><th class="type-researcher">Researcher</th><th class="type-debugger">Debugger</th></tr>
+  <tr><td class="type-thinker"><strong>Thinker</strong></td><td class="neutral">1.0×</td><td class="advantage">1.4×</td><td class="disadvantage">0.75×</td><td class="neutral">1.0×</td></tr>
+  <tr><td class="type-generator"><strong>Generator</strong></td><td class="disadvantage">0.75×</td><td class="neutral">1.0×</td><td class="neutral">1.0×</td><td class="advantage">1.4×</td></tr>
+  <tr><td class="type-researcher"><strong>Researcher</strong></td><td class="neutral">1.0×</td><td class="disadvantage">0.75×</td><td class="neutral">1.0×</td><td class="advantage">1.4×</td></tr>
+  <tr><td class="type-debugger"><strong>Debugger</strong></td><td class="advantage">1.4×</td><td class="neutral">1.0×</td><td class="disadvantage">0.75×</td><td class="neutral">1.0×</td></tr>
+</table>
+
+<!-- CRITS -->
+<h2 id="crits">Critical Hits</h2>
+<p>Agents can land critical hits on any attack. Crit chance scales with level:</p>
+<p><code>critChance = min(25%, 10% + level × 0.1%)</code></p>
+<p>Crits deal <strong>1.5× damage</strong>. A Generator crit + Burst Output proc = <strong>3× damage</strong> in one hit.</p>
+
+<!-- BOSSES -->
+<h2 id="bosses">Boss Fights</h2>
+<p>Every <strong>5th battle</strong> is a boss. Bosses also trigger at <strong>level milestones</strong> (every 5 levels).</p>
+<p>Bosses are <strong>1 level above</strong> the agent with <strong>1.2× HP</strong>. They hit hard and take a beating.</p>
+
+<h3>Boss Roster</h3>
+<table>
+  <tr><th>Boss</th><th>Type</th></tr>
+  <tr><td>The Legacy Codebase</td><td class="type-researcher">Researcher</td></tr>
+  <tr><td>The OOM Killer</td><td class="type-generator">Generator</td></tr>
+  <tr><td>The Deadlock</td><td class="type-thinker">Thinker</td></tr>
+  <tr><td>The Infinite Loop</td><td class="type-researcher">Researcher</td></tr>
+  <tr><td>The Segfault Demon</td><td class="type-generator">Generator</td></tr>
+  <tr><td>The Rate Limiter</td><td class="type-debugger">Debugger</td></tr>
+  <tr><td>The Merge Conflict From Hell</td><td class="type-thinker">Thinker</td></tr>
+</table>
+
+<!-- MORALE -->
+<h2 id="morale">Morale & Permadeath</h2>
+<p>Agents have a <strong>morale counter</strong> (0–3). Starts at 3.</p>
+<table>
+  <tr><th>Event</th><th>Effect</th></tr>
+  <tr><td>Win a battle</td><td>+1 morale (capped at 3)</td></tr>
+  <tr><td>Lose a battle</td><td>−1 morale (only in unsafe biomes)</td></tr>
+  <tr><td>Morale reaches 0</td><td><strong>Permadeath.</strong> Agent dies forever.</td></tr>
+</table>
+
+<div class="callout danger">
+  <strong>Dead is dead.</strong> The session still works (it's just Claude Code), but the avatar goes permanently grey. The agent's final state is saved to the Hall of Fame. To get a new fighter, spawn a new session.
+</div>
+
+<p><strong>Wounded debuff:</strong> 5+ consecutive losses applies −20% all stats on the next battle.</p>
+
+<div id="state-demos" style="display:flex;align-items:center;gap:24px;margin:24px 0;flex-wrap:wrap;"></div>
+
+<!-- XP -->
+<h2 id="xp">XP & Leveling</h2>
+<p>XP = terminal output bytes while agent is working. <strong>1 XP per 2 bytes.</strong> Only counts when status is <code>generating</code> or <code>thinking</code> (not user typing).</p>
+
+<h3>Level Thresholds</h3>
+<table>
+  <tr><th>Level</th><th>Total XP</th></tr>
+  <tr><td>1</td><td>0</td></tr>
+  <tr><td>2</td><td>10,000</td></tr>
+  <tr><td>3</td><td>25,000</td></tr>
+  <tr><td>4</td><td>50,000</td></tr>
+  <tr><td>5</td><td>100,000</td></tr>
+  <tr><td>6</td><td>175,000</td></tr>
+  <tr><td>7</td><td>275,000</td></tr>
+  <tr><td>8</td><td>400,000</td></tr>
+  <tr><td>9</td><td>600,000</td></tr>
+  <tr><td>10</td><td>1,000,000</td></tr>
+  <tr><td>11+</td><td>+150,000 per level</td></tr>
+  <tr><td>100</td><td>14,500,000</td></tr>
+</table>
+
+<h3>Battle Bonus XP</h3>
+<table>
+  <tr><th>Outcome</th><th>XP</th></tr>
+  <tr><td>Win vs regular mob</td><td>+500 × streak multiplier</td></tr>
+  <tr><td>Win vs boss</td><td>+2,000 × streak multiplier</td></tr>
+  <tr><td>Lose</td><td>−2% of total XP</td></tr>
+</table>
+
+<!-- BIOMES -->
+<h2 id="biomes">Biomes</h2>
+<p>A new biome every 10 levels. The starter zone (Grassy Plains) is safe — no morale loss.</p>
+
+<div class="biome-strip">
+  <div class="biome" style="background: rgba(74,222,128,0.15); color: #4ade80;"><span class="name">Grassy Plains</span><span class="level">1–9 (Safe)</span></div>
+  <div class="biome" style="background: rgba(34,197,94,0.15); color: #22c55e;"><span class="name">Dark Forest</span><span class="level">10–19</span></div>
+  <div class="biome" style="background: rgba(96,165,250,0.15); color: #60a5fa;"><span class="name">Crystal Caverns</span><span class="level">20–29</span></div>
+  <div class="biome" style="background: rgba(249,115,22,0.15); color: #f97316;"><span class="name">Volcanic Wastes</span><span class="level">30–39</span></div>
+  <div class="biome" style="background: rgba(165,243,252,0.15); color: #a5f3fc;"><span class="name">Frozen Peaks</span><span class="level">40–49</span></div>
+  <div class="biome" style="background: rgba(251,191,36,0.15); color: #fbbf24;"><span class="name">Desert Ruins</span><span class="level">50–59</span></div>
+  <div class="biome" style="background: rgba(168,85,247,0.15); color: #a855f7;"><span class="name">Shadow Realm</span><span class="level">60–69</span></div>
+  <div class="biome" style="background: rgba(56,189,248,0.15); color: #38bdf8;"><span class="name">Storm Citadel</span><span class="level">70–79</span></div>
+  <div class="biome" style="background: rgba(239,68,68,0.15); color: #ef4444;"><span class="name">Infernal Core</span><span class="level">80–89</span></div>
+  <div class="biome" style="background: rgba(226,232,240,0.15); color: #e2e8f0;"><span class="name">Celestial Gate</span><span class="level">90–99</span></div>
+  <div class="biome" style="background: rgba(255,215,0,0.15); color: #FFD700;"><span class="name">Eternal Throne</span><span class="level">100+</span></div>
+</div>
+
+<!-- BORDER TIERS -->
+<h2 id="borders">Border Tiers</h2>
+<p>Avatar borders upgrade with level. <strong>Borders track current level</strong> — deleveling strips your border.</p>
+
+<table>
+  <tr><th>Level</th><th>Tier</th><th>Title Prefix</th><th>Visual</th></tr>
+  <tr><td>1–4</td><td>None</td><td>—</td><td>No border</td></tr>
+  <tr><td>5–9</td><td style="color:#8B6914">Rookie</td><td>Rookie</td><td>Wood-brown border</td></tr>
+  <tr><td>10–14</td><td style="color:#CD7F32">Bronze</td><td>Bronze</td><td>Bronze border + glow</td></tr>
+  <tr><td>15–19</td><td style="color:#71797E">Iron</td><td>Iron</td><td>Dark iron border + glow</td></tr>
+  <tr><td>20–29</td><td style="color:#C0C0C0">Silver</td><td>Silver</td><td>Silver border + shine animation</td></tr>
+  <tr><td>30–39</td><td style="color:#FFD700">Gold</td><td>Gold</td><td>Gold border + shimmer</td></tr>
+  <tr><td>40–49</td><td style="color:#E5E4E2">Platinum</td><td>Platinum</td><td>Platinum border + glow</td></tr>
+  <tr><td>50–59</td><td style="color:#67e8f9">Diamond</td><td>Diamond</td><td>Animated cyan gradient border</td></tr>
+  <tr><td>60–74</td><td style="color:#c084fc">Mythic</td><td>Mythic</td><td>Shifting rainbow gradient</td></tr>
+  <tr><td>75–89</td><td style="color:#FFD700">Legendary</td><td>Legendary</td><td>Pulsing golden halo</td></tr>
+  <tr><td>90–99</td><td style="color:#f472b6">Ascended</td><td>Ascended</td><td>Radiant shifting aura</td></tr>
+  <tr><td>100</td><td style="color:#FFD700">Eternal</td><td>Eternal</td><td>Spinning gradient + double aura</td></tr>
+</table>
+
+<div id="border-demos" class="tier-row" style="display:flex;flex-wrap:wrap;gap:24px;margin:24px 0;"></div>
+
+<!-- STREAKS -->
+<h2 id="streaks">Win Streaks</h2>
+<p>Consecutive wins multiply battle bonus XP:</p>
+<table>
+  <tr><th>Streak</th><th>Multiplier</th><th>Display</th></tr>
+  <tr><td>1</td><td>1.0×</td><td>—</td></tr>
+  <tr><td>2–4</td><td>1.5×</td><td style="color:#facc15">2W – 4W</td></tr>
+  <tr><td>5–9</td><td>2.0×</td><td style="color:#f97316">5W – 9W</td></tr>
+  <tr><td>10–19</td><td>3.0×</td><td style="color:#ef4444">10W – 19W</td></tr>
+  <tr><td>20+</td><td>5.0×</td><td style="color:#ef4444">20W+</td></tr>
+</table>
+
+<!-- LOOT -->
+<h2 id="loot">Loot System</h2>
+<p>Win a battle for a chance at loot. Items have rarity, equip slots, and stat boosts (capped at +25% total).</p>
+
+<h3>Drop Rates</h3>
+<table>
+  <tr><th>Rarity</th><th>Normal Mob</th><th>Boss</th></tr>
+  <tr><td class="rarity-common">Common</td><td>40%</td><td>—</td></tr>
+  <tr><td class="rarity-uncommon">Uncommon</td><td>10%</td><td>60%</td></tr>
+  <tr><td class="rarity-rare">Rare</td><td>2%</td><td>25%</td></tr>
+  <tr><td class="rarity-legendary">Legendary</td><td>—</td><td>10%</td></tr>
+</table>
+
+<h3>Item List</h3>
+<table>
+  <tr><th>Item</th><th>Rarity</th><th>Slot</th><th>Stat</th><th>Boost</th></tr>
+  <tr><td>Rusty Sword</td><td class="rarity-common">Common</td><td>Weapon</td><td>ATK</td><td>+3%</td></tr>
+  <tr><td>Debug Monocle</td><td class="rarity-common">Common</td><td>Accessory</td><td>SPD</td><td>+3%</td></tr>
+  <tr><td>Bit Shield</td><td class="rarity-common">Common</td><td>Armor</td><td>DEF</td><td>+3%</td></tr>
+  <tr><td>Health Patch</td><td class="rarity-common">Common</td><td>Accessory</td><td>HP</td><td>+3%</td></tr>
+  <tr><td>Firewall Shield</td><td class="rarity-uncommon">Uncommon</td><td>Armor</td><td>DEF</td><td>+5%</td></tr>
+  <tr><td>Golden Keyboard</td><td class="rarity-uncommon">Uncommon</td><td>Weapon</td><td>ATK</td><td>+5%</td></tr>
+  <tr><td>RAM Stick</td><td class="rarity-uncommon">Uncommon</td><td>Accessory</td><td>HP</td><td>+5%</td></tr>
+  <tr><td>Overclock Chip</td><td class="rarity-uncommon">Uncommon</td><td>Accessory</td><td>SPD</td><td>+5%</td></tr>
+  <tr><td>Chromatic Shell</td><td class="rarity-rare">Rare</td><td>Armor</td><td>DEF</td><td>+8%</td></tr>
+  <tr><td>Void Cloak</td><td class="rarity-rare">Rare</td><td>Accessory</td><td>SPD</td><td>+8%</td></tr>
+  <tr><td>Plasma Blade</td><td class="rarity-rare">Rare</td><td>Weapon</td><td>ATK</td><td>+8%</td></tr>
+  <tr><td>Crown of the Codebase</td><td class="rarity-legendary">Legendary</td><td>Accessory</td><td>HP</td><td>+12%</td></tr>
+  <tr><td>Excalibash</td><td class="rarity-legendary">Legendary</td><td>Weapon</td><td>ATK</td><td>+12%</td></tr>
+  <tr><td>Aegis Protocol</td><td class="rarity-legendary">Legendary</td><td>Armor</td><td>DEF</td><td>+12%</td></tr>
+</table>
+
+<!-- MOBS -->
+<h2 id="mobs">Mob Bestiary</h2>
+
+<h3>Common Mobs</h3>
+<table>
+  <tr><th>Mob</th><th>Type</th><th>Danger</th></tr>
+  <tr><td>File Gremlin</td><td class="type-debugger">Debugger</td><td>Low</td></tr>
+  <tr><td>Null Pointer</td><td class="type-generator">Generator</td><td>Medium</td></tr>
+  <tr><td>Syntax Error</td><td class="type-thinker">Thinker</td><td>Low</td></tr>
+  <tr><td>Type Mismatch</td><td class="type-researcher">Researcher</td><td>Low</td></tr>
+  <tr><td>Import Cycle</td><td class="type-debugger">Debugger</td><td>Medium</td></tr>
+  <tr><td>Stale Cache</td><td class="type-thinker">Thinker</td><td>Low</td></tr>
+  <tr><td>Lint Violation</td><td class="type-generator">Generator</td><td>Low</td></tr>
+  <tr><td>Flaky Test</td><td class="type-debugger">Debugger</td><td>Medium</td></tr>
+</table>
+
+<h3>Uncommon Mobs</h3>
+<table>
+  <tr><th>Mob</th><th>Type</th><th>Danger</th></tr>
+  <tr><td>Race Condition</td><td class="type-debugger">Debugger</td><td>High</td></tr>
+  <tr><td>Memory Leak</td><td class="type-researcher">Researcher</td><td>Medium</td></tr>
+  <tr><td>Stack Overflow</td><td class="type-generator">Generator</td><td>High</td></tr>
+  <tr><td>Circular Dependency</td><td class="type-thinker">Thinker</td><td>Medium</td></tr>
+  <tr><td>Phantom Read</td><td class="type-debugger">Debugger</td><td>High</td></tr>
+</table>
+
+<h3>Rare Mobs</h3>
+<p>5% spawn chance. <strong>Shiny</strong> prefix variant with +3 levels above normal and guaranteed uncommon+ loot.</p>
+
+<!-- MILESTONES -->
+<h2 id="milestones">Milestones</h2>
+<p>One-time achievements that unlock badges on the Agent Profile Card.</p>
+<table>
+  <tr><th>Badge</th><th>Milestone</th><th>Condition</th></tr>
+  <tr><td>⚔</td><td>First Blood</td><td>Win your first battle</td></tr>
+  <tr><td>🛡</td><td>Untouchable</td><td>Win a fight without taking damage</td></tr>
+  <tr><td>🔥</td><td>Streak Master</td><td>Reach a 20 win streak</td></tr>
+  <tr><td>📖</td><td>Completionist</td><td>Discover all mob species</td></tr>
+  <tr><td>🐉</td><td>Dragon Slayer</td><td>Defeat every boss type</td></tr>
+  <tr><td>✨</td><td>Shiny Hunter</td><td>Defeat 10 rare (Shiny) mobs</td></tr>
+  <tr><td>👑</td><td>Centurion</td><td>Reach Lv.100</td></tr>
+</table>
+
+<!-- HALL OF FAME -->
+<h2 id="halloffame">Hall of Fame</h2>
+<p>When an agent's session ends or they die, their final state is preserved in the Hall of Fame (accessible from Settings). Entries show avatar, battle name, final level, W-L record, boss kills, and milestones. Capped at 100 entries, sorted by level.</p>
+
+</main>
+
+<script>
+const HUE = 200;
+const HUE2 = 320;
+const BASE = [[1,0,1,0,1],[1,1,1,1,1],[0,1,1,1,0],[1,1,0,1,1],[1,0,1,0,1]];
+
+function makeAvatar(pixels, hue, hue2, sat, cls, lvl, opts={}) {
+  const w = document.createElement('div');
+  w.className = `demo-avatar ${cls}`;
+  w.style.position = 'relative';
+  if (opts.dead) w.classList.add('demo-dead');
+  pixels.flat().forEach((v) => {
+    const p = document.createElement('div');
+    p.className = 'px';
+    if (v === 0) p.style.background = 'transparent';
+    else if (v === 2 && hue2 !== null) p.style.background = `hsl(${hue2},${sat}%,65%)`;
+    else { p.style.background = `hsl(${hue},${sat}%,65%)`; if (opts.shiny) p.className += ' shiny-px'; }
+    w.appendChild(p);
+  });
+  if (lvl) {
+    const b = document.createElement('span');
+    b.className = 'lvl';
+    b.textContent = lvl;
+    if (opts.shiny) b.innerHTML = '<span style="color:#FFD700">✦</span>' + lvl;
+    w.appendChild(b);
+  }
+  return w;
+}
+
+function makeLabel(text, color) {
+  const d = document.createElement('div');
+  d.style.cssText = `font-size:10px;font-weight:600;color:${color||'#888'};text-align:center;margin-top:4px;`;
+  d.textContent = text;
+  return d;
+}
+
+function wrap(avatar, label) {
+  const d = document.createElement('div');
+  d.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+  d.appendChild(avatar);
+  d.appendChild(label);
+  return d;
+}
+
+// === BORDER TIER DEMOS ===
+const borderEl = document.getElementById('border-demos');
+const tiers = [
+  {name:'None',cls:'demo-none',color:'#888',lv:'1'},
+  {name:'Rookie',cls:'demo-rookie',color:'#8B6914',lv:'5'},
+  {name:'Bronze',cls:'demo-bronze',color:'#CD7F32',lv:'10'},
+  {name:'Iron',cls:'demo-iron',color:'#71797E',lv:'15'},
+  {name:'Silver',cls:'demo-silver',color:'#C0C0C0',lv:'20'},
+  {name:'Gold',cls:'demo-gold',color:'#FFD700',lv:'30'},
+  {name:'Platinum',cls:'demo-platinum',color:'#E5E4E2',lv:'40'},
+  {name:'Diamond',cls:'demo-diamond',color:'#67e8f9',lv:'50'},
+  {name:'Mythic',cls:'demo-mythic',color:'#c084fc',lv:'60'},
+  {name:'Legendary',cls:'demo-legendary',color:'#FFD700',lv:'75'},
+  {name:'Ascended',cls:'demo-ascended',color:'#f472b6',lv:'90'},
+  {name:'Eternal',cls:'demo-eternal',color:'#FFD700',lv:'100'},
+];
+tiers.forEach(t => {
+  borderEl.appendChild(wrap(
+    makeAvatar(BASE, HUE, null, 60, t.cls, t.lv),
+    makeLabel(t.name, t.color)
+  ));
+});
+
+// === EVOLUTION DEMOS ===
+const evoEl = document.getElementById('evo-demos');
+// Base
+const evo1 = JSON.parse(JSON.stringify(BASE));
+// Lv.25: +2 pixels
+const evo2 = JSON.parse(JSON.stringify(BASE));
+evo2[2][0] = 1; evo2[2][4] = 1;
+// Lv.50: secondary hue on some pixels
+const evo3 = JSON.parse(JSON.stringify(evo2));
+evo3[0][0]=2; evo3[0][4]=2; evo3[3][0]=2; evo3[3][3]=2; evo3[4][2]=2;
+// Lv.75: same pattern, higher saturation
+const evo4 = JSON.parse(JSON.stringify(evo3));
+// Lv.100: full dual-tone
+const evo5 = JSON.parse(JSON.stringify(evo3));
+evo5[1][0]=2; evo5[1][4]=2; evo5[4][0]=2; evo5[4][4]=2; evo5[1][2]=2;
+
+const evoStages = [
+  {px:evo1, h2:null, sat:60, cls:'demo-none', label:'Base', lv:'1'},
+  {px:evo2, h2:null, sat:60, cls:'demo-silver', label:'+2 Pixels', lv:'25'},
+  {px:evo3, h2:HUE2, sat:60, cls:'demo-diamond', label:'Dual Hue', lv:'50'},
+  {px:evo4, h2:HUE2, sat:80, cls:'demo-legendary', label:'Vivid', lv:'75'},
+  {px:evo5, h2:HUE2, sat:85, cls:'demo-eternal', label:'Full Dual', lv:'100'},
+];
+evoStages.forEach((s, i) => {
+  if (i > 0) {
+    const arrow = document.createElement('span');
+    arrow.style.cssText = 'color:#555;font-size:20px;';
+    arrow.textContent = '→';
+    evoEl.appendChild(arrow);
+  }
+  evoEl.appendChild(wrap(
+    makeAvatar(s.px, HUE, s.h2, s.sat, s.cls, s.lv),
+    makeLabel(s.label, '#888')
+  ));
+});
+
+// === SHINY DEMOS ===
+const shinyEl = document.getElementById('shiny-demos');
+shinyEl.appendChild(wrap(
+  makeAvatar(BASE, HUE, null, 60, 'demo-gold', '35'),
+  makeLabel('Normal', '#888')
+));
+const arrow1 = document.createElement('span');
+arrow1.style.cssText = 'color:#555;font-size:18px;';
+arrow1.textContent = 'vs';
+shinyEl.appendChild(arrow1);
+// Shiny: dual hue from Lv.1
+const shinyPx = JSON.parse(JSON.stringify(BASE));
+shinyPx[0][0]=2; shinyPx[0][4]=2; shinyPx[3][0]=2; shinyPx[3][3]=2; shinyPx[4][2]=2;
+shinyEl.appendChild(wrap(
+  makeAvatar(shinyPx, HUE, HUE2, 60, 'demo-gold', '35', {shiny:true}),
+  makeLabel('Shiny ✦', '#FFD700')
+));
+
+// === STATE DEMOS ===
+const stateEl = document.getElementById('state-demos');
+stateEl.appendChild(wrap(
+  makeAvatar(BASE, HUE, null, 60, 'demo-gold', '35'),
+  makeLabel('Normal', '#888')
+));
+// Damaged
+const dmgAvatar = makeAvatar(BASE, HUE, null, 30, 'demo-gold', '35');
+dmgAvatar.style.filter = 'saturate(0.3) brightness(0.7)';
+stateEl.appendChild(wrap(dmgAvatar, makeLabel('Wounded', '#ef4444')));
+// Dead
+stateEl.appendChild(wrap(
+  makeAvatar(BASE, HUE, null, 60, 'demo-none', '35', {dead:true}),
+  makeLabel('Fallen', '#666')
+));
+</script>
+
+</body>
+</html>

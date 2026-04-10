@@ -10,6 +10,8 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { loadConfig, saveConfig } from './config';
 import { exportToObsidian } from './obsidian-exporter';
+import { calculateLevel, processBattle, createBattleState, generateBattleName, isShiny as checkShiny } from './battle-engine';
+import { saveToHallOfFame, loadHallOfFame } from './hall-of-fame';
 
 export function registerIpcHandlers(
   sessionManager: SessionManager,
@@ -63,6 +65,11 @@ export function registerIpcHandlers(
       }
     }
 
+    // Save to Hall of Fame before killing
+    if (session?.info.battleState) {
+      await saveToHallOfFame(session.info, session.info.battleState.isDead ? 'permadeath' : 'killed');
+    }
+
     sessionManager.kill(sessionId);
     return { ok: true };
   });
@@ -101,6 +108,15 @@ export function registerIpcHandlers(
       { label: 'Switch to Session', click: () => win.webContents.send('context-menu:action', { sessionId, action: 'switch' }) },
       { type: 'separator' },
     ];
+
+    // Battle menu items (only for standalone sessions with battle state)
+    if (session?.info.battleState && !isTeamMember) {
+      template.push(
+        { label: 'Battle Log', click: () => win.webContents.send('context-menu:action', { sessionId, action: 'battle-log' }) },
+        { label: 'Bestiary', click: () => win.webContents.send('context-menu:action', { sessionId, action: 'bestiary' }) },
+        { type: 'separator' },
+      );
+    }
 
     if (isTeamMember) {
       template.push({
@@ -449,5 +465,10 @@ export function registerIpcHandlers(
     } catch {
       return { ok: false };
     }
+  });
+
+  // Hall of Fame
+  ipcMain.handle(IPC.HALL_OF_FAME_LOAD, async () => {
+    return loadHallOfFame();
   });
 }

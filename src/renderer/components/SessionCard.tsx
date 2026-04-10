@@ -1,13 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { SessionInfo } from '../../shared/types';
+import React, { useEffect, useRef, useState } from 'react';
+import { SessionInfo, AgentBattleState } from '../../shared/types';
 import { ContextBar } from './ContextBar';
 import { AvatarPixels } from './AvatarPixels';
+import { xpForLevel } from '../../shared/battle-utils';
+import { getBiome } from '../../shared/biomes';
+
+// Border tier mapping — must match battle-engine.ts getBorderTier()
+function getBorderInfo(level: number): { cssClass: string; color: string } | null {
+  if (level >= 100) return { cssClass: 'border-eternal', color: '' };
+  if (level >= 90)  return { cssClass: 'border-ascended', color: '' };
+  if (level >= 75)  return { cssClass: 'border-legendary', color: '#FFD700' };
+  if (level >= 60)  return { cssClass: 'border-mythic', color: '' };
+  if (level >= 50)  return { cssClass: 'border-diamond', color: '' };
+  if (level >= 40)  return { cssClass: 'border-platinum', color: '#E5E4E2' };
+  if (level >= 30)  return { cssClass: 'border-gold', color: '#FFD700' };
+  if (level >= 20)  return { cssClass: 'border-silver', color: '#C0C0C0' };
+  if (level >= 15)  return { cssClass: 'border-iron', color: '#71797E' };
+  if (level >= 10)  return { cssClass: 'border-bronze', color: '#CD7F32' };
+  if (level >= 5)   return { cssClass: 'border-rookie', color: '#8B6914' };
+  return null;
+}
 
 interface Props {
   session: SessionInfo;
   isActive: boolean;
   onClick: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  onAvatarRightClick?: (e: React.MouseEvent) => void;
   isLead?: boolean;
 }
 
@@ -43,17 +62,44 @@ function AnimatedDots() {
   return <span style={{ display: 'inline-block', width: 18, textAlign: 'left' }}>{DOTS[i]}</span>;
 }
 
-export function SessionCard({ session, isActive, onClick, onContextMenu, isLead }: Props) {
+export function SessionCard({ session, isActive, onClick, onContextMenu, onAvatarRightClick, isLead }: Props) {
   const st = STATUS_CONFIG[session.status];
   const isWorking = session.status === 'generating' || session.status === 'thinking';
   const isAwaiting = session.awaitingApproval;
+  const bs = session.battleState;
+
+  // Derive battle visual props
+  const borderInfo = bs ? getBorderInfo(bs.level) : null;
+  const isWounded = bs ? (bs.lastLossTime > 0 && Date.now() - bs.lastLossTime < 120000) : false;
+  const battleApproaching = bs && !bs.isDead && bs.tokensSinceLastBattle >= bs.nextBattleThreshold * 0.8;
+  const biome = bs ? getBiome(bs.level) : null;
+
+  const [levelUpAnim, setLevelUpAnim] = useState(false);
+  const prevLevelRef = useRef(bs?.level ?? 0);
+
+  // Detect level-up → trigger border sweep animation
+  useEffect(() => {
+    if (bs && bs.level > prevLevelRef.current && prevLevelRef.current > 0) {
+      setLevelUpAnim(true);
+      const t = setTimeout(() => setLevelUpAnim(false), 1500);
+      return () => clearTimeout(t);
+    }
+    prevLevelRef.current = bs?.level ?? 0;
+  }, [bs?.level]);
+
+  // XP progress
+  const xpPct = bs && !bs.isDead ? (() => {
+    const cur = xpForLevel(bs.level);
+    const next = xpForLevel(bs.level + 1);
+    return next > cur ? ((bs.xp - cur) / (next - cur)) * 100 : 100;
+  })() : 0;
 
   return (
     <div
       onClick={onClick}
       onContextMenu={onContextMenu}
+      className={levelUpAnim ? 'level-up-sweep' : undefined}
       style={{
-        padding: '10px 12px',
         marginBottom: 6,
         borderRadius: 8,
         background: isActive ? 'var(--bg-card)' : 'transparent',
@@ -67,13 +113,11 @@ export function SessionCard({ session, isActive, onClick, onContextMenu, isLead 
         cursor: 'pointer',
         transition: 'all 0.15s ease',
         boxShadow: isAwaiting
-          ? undefined  // handled by animation
+          ? undefined
           : isActive ? '0 0 10px 2px rgba(255, 255, 255, 0.15)'
           : isWorking ? `0 0 8px 1px ${st.color}33` : 'none',
         animation: isAwaiting ? 'approvalGlow 1.5s ease-in-out infinite' : 'none',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
+        overflow: 'hidden',
       }}
       onMouseEnter={(e) => {
         if (!isActive && !isWorking && !isAwaiting) {
@@ -88,7 +132,24 @@ export function SessionCard({ session, isActive, onClick, onContextMenu, isLead 
         }
       }}
     >
-      <AvatarPixels seed={session.avatarSeed} />
+      {/* Main content row */}
+      <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <AvatarPixels
+        seed={session.avatarSeed}
+        level={bs?.level}
+        peakLevel={bs?.peakLevel}
+        isShiny={bs?.isShiny}
+        isDead={bs?.isDead}
+        isWounded={isWounded}
+        borderTierClass={borderInfo?.cssClass}
+        onContextMenu={(e) => {
+          if (onAvatarRightClick && bs) {
+            e.preventDefault();
+            e.stopPropagation();
+            onAvatarRightClick(e);
+          }
+        }}
+      />
 
       {/* Both rows stacked next to avatar */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -128,7 +189,7 @@ export function SessionCard({ session, isActive, onClick, onContextMenu, isLead 
           </div>
         </div>
 
-        {/* Row 2: Status + Time + Model + Cost */}
+        {/* Row 2: Status + Time + Model */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -155,13 +216,61 @@ export function SessionCard({ session, isActive, onClick, onContextMenu, isLead 
           {session.model && (
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.model}</span>
           )}
-          {session.cost && (
-            <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-              {session.cost}
-            </span>
-          )}
         </div>
+
+        {/* Row 3: Battle info — Biome + Streak + Cost + Sword + Fallen */}
+        {bs && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
+            fontSize: 10,
+            color: 'var(--text-muted)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+          }}>
+            {biome && !bs.isDead && (
+              <span style={{ color: biome.color, fontWeight: 500 }}>
+                {biome.name}
+              </span>
+            )}
+            {bs.winStreak >= 2 && !bs.isDead && (
+              <span style={{
+                color: bs.winStreak >= 10 ? '#ef4444' : bs.winStreak >= 5 ? '#f97316' : '#facc15',
+                fontWeight: 700, fontSize: 10,
+                background: 'rgba(255,255,255,0.06)', borderRadius: 3,
+                padding: '0 4px', lineHeight: '16px',
+              }} title={`${bs.winStreak} win streak`}>
+                {bs.winStreak}W
+              </span>
+            )}
+            {bs.isDead && (
+              <span style={{ color: '#666', fontWeight: 600 }} title="This agent has fallen">
+                FALLEN
+              </span>
+            )}
+            {battleApproaching && (
+              <span className="sword-pulse" style={{ fontSize: 11 }} title="Battle approaching...">
+                ⚔
+              </span>
+            )}
+          </div>
+        )}
       </div>
+      </div>
+
+      {/* XP bar — full width at bottom of card */}
+      {bs && !bs.isDead && (
+        <div style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
+          <div style={{
+            height: '100%',
+            width: `${Math.min(100, Math.max(0, xpPct))}%`,
+            background: biome ? biome.color : '#c084fc',
+            transition: 'width 0.5s ease',
+          }} />
+        </div>
+      )}
     </div>
   );
 }

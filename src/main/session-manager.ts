@@ -1,6 +1,7 @@
 import * as pty from 'node-pty';
-import { SessionInfo, IPC } from '../shared/types';
+import { SessionInfo, IPC, BattleResultInfo } from '../shared/types';
 import { parseStatus, parseContext, parseContextSize, parseCost, parseModel, parseAwaitingApproval } from './parsers';
+import { createBattleState, processBattle, calculateLevel } from './battle-engine';
 import { randomBytes, randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
 import { BrowserWindow, ipcMain } from 'electron';
@@ -10,16 +11,25 @@ interface ManagedSession {
   pty: pty.IPty;
   buffer: string; // ring buffer of recent output
   onDataCallback?: (data: string) => void;
+  lastContextTokens: number; // for context-based XP delta tracking
+  lastCost: number;          // for cost-based XP delta tracking
+  costInitialized: boolean;  // skip first cost delta to avoid XP dump on restore
+  bytesSinceLastPoll: number; // PTY output bytes accumulated between polls
 }
 
-const MAX_BUFFER = 8000; // chars to keep in ring buffer
+const MAX_BUFFER = 32000; // chars to keep in ring buffer — large enough to capture cost strings between polls
 
 export class SessionManager {
   private sessions = new Map<string, ManagedSession>();
   private getWindow: (() => BrowserWindow | null) | null = null;
+  private battleSystemEnabled = true;
 
   setWindowGetter(fn: () => BrowserWindow | null): void {
     this.getWindow = fn;
+  }
+
+  setBattleSystemEnabled(enabled: boolean): void {
+    this.battleSystemEnabled = enabled;
   }
 
   /**
@@ -113,11 +123,16 @@ export class SessionManager {
       info,
       pty: ptyProcess,
       buffer: '',
+      lastContextTokens: 0,
+      lastCost: 0,
+      costInitialized: false,
+      bytesSinceLastPoll: 0,
     };
 
     ptyProcess.onData((data) => {
       // Append to ring buffer
       managed.buffer += data;
+      managed.bytesSinceLastPoll += data.length;
       if (managed.buffer.length > MAX_BUFFER) {
         managed.buffer = managed.buffer.slice(-MAX_BUFFER);
       }
@@ -134,6 +149,12 @@ export class SessionManager {
     });
 
     this.sessions.set(id, managed);
+
+    // Initialize battle state for standalone sessions (not team agents)
+    if (!info.teamId) {
+      info.battleState = createBattleState(info.avatarSeed);
+    }
+
     return info;
   }
 
@@ -196,10 +217,15 @@ export class SessionManager {
       info,
       pty: ptyProcess,
       buffer: '',
+      lastContextTokens: 0,
+      lastCost: 0,
+      costInitialized: false,
+      bytesSinceLastPoll: 0,
     };
 
     ptyProcess.onData((data) => {
       managed.buffer += data;
+      managed.bytesSinceLastPoll += data.length;
       if (managed.buffer.length > MAX_BUFFER) {
         managed.buffer = managed.buffer.slice(-MAX_BUFFER);
       }
@@ -264,6 +290,8 @@ export class SessionManager {
 
   getAllStatus(): SessionInfo[] {
     const results: SessionInfo[] = [];
+    const battleResults: { sessionId: string; result: BattleResultInfo }[] = [];
+
     for (const [, session] of this.sessions) {
       // Parse current status from buffer
       const buffer = session.buffer;
@@ -285,8 +313,75 @@ export class SessionManager {
         // Not a git repo or git not available — leave branch as-is
       }
       session.info.awaitingApproval = parseAwaitingApproval(buffer);
+
+      // ── Battle System: XP tracking + battle trigger ──────────────────
+      const bs = session.info.battleState;
+      if (this.battleSystemEnabled && bs && !bs.isDead && !session.info.teamId) {
+        // Primary XP source: PTY output bytes (1 XP per 3 bytes of terminal output)
+        // This flows in real-time as the agent generates text — no parsing needed
+        // Only count bytes as XP when agent is actively working (freshly-parsed status)
+        const isWorking = session.info.status === 'generating' || session.info.status === 'thinking';
+        const bytes = isWorking ? Math.min(session.bytesSinceLastPoll, 10000) : 0;
+        session.bytesSinceLastPoll = 0;
+        const xpDelta = Math.floor(bytes / 2);
+
+        if (xpDelta > 0) {
+          const prevLevel = bs.level;
+          bs.xp += xpDelta;
+          bs.tokensSinceLastBattle += xpDelta;
+          bs.level = calculateLevel(bs.xp);
+          bs.peakLevel = Math.max(bs.peakLevel ?? 1, bs.level);
+
+          // Boss fight on level milestone (every 5 levels: Lv.5, 10, 15, ...)
+          const crossedMilestone = bs.level > prevLevel
+            && Math.floor(bs.level / 5) > Math.floor(prevLevel / 5);
+
+          // Regular battle from XP accumulation, OR forced boss on milestone
+          if (bs.tokensSinceLastBattle >= bs.nextBattleThreshold || crossedMilestone) {
+            // Force boss if it's a milestone level
+            if (crossedMilestone) {
+              bs.battlesCompleted = Math.ceil((bs.battlesCompleted + 1) / 5) * 5 - 1;
+            }
+            const result = processBattle(bs, session.info.avatarSeed);
+            if (result) {
+              battleResults.push({ sessionId: session.info.id, result });
+            }
+          }
+        }
+      }
+
       results.push({ ...session.info });
     }
+
+    // Send battle results to renderer, then clear pendingBattle so it
+    // doesn't persist on subsequent status polls
+    if (battleResults.length > 0) {
+      const win = this.getWindow?.();
+      if (win) {
+        for (const { sessionId, result } of battleResults) {
+          win.webContents.send(IPC.BATTLE_RESULT, { sessionId, result });
+        }
+      }
+      for (const { sessionId } of battleResults) {
+        const s = this.sessions.get(sessionId);
+        if (s?.info.battleState) {
+          s.info.battleState.pendingBattle = null;
+          // Send milestone notification if earned
+          if (s.info.battleState.pendingMilestone) {
+            const win = this.getWindow?.();
+            if (win) {
+              win.webContents.send(IPC.MILESTONE_EARNED, {
+                sessionId,
+                milestone: s.info.battleState.pendingMilestone,
+                battleName: s.info.battleState.battleName,
+              });
+            }
+            s.info.battleState.pendingMilestone = null;
+          }
+        }
+      }
+    }
+
     return results;
   }
 

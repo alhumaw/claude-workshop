@@ -89,7 +89,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         return fresh ? {
           ...fresh,
           name: s.name,
-          avatarSeed: s.avatarSeed,
           teamId: s.teamId,
           teamRole: s.teamRole,
           teamAgentName: s.teamAgentName,

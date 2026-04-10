@@ -47,6 +47,9 @@ declare global {
       saveTeamTemplate: (template: any) => Promise<{ ok: boolean }>;
       loadTeamTemplates: () => Promise<any[]>;
       deleteTeamTemplate: (templateId: string) => Promise<{ ok: boolean }>;
+      onBattleResult: (callback: (sessionId: string, result: any) => void) => () => void;
+      onMilestoneEarned: (callback: (sessionId: string, milestone: string, battleName: string) => void) => () => void;
+      loadHallOfFame: () => Promise<any[]>;
     };
   }
 }
