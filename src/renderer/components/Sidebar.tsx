@@ -5,8 +5,6 @@ import { AgentPopover } from './AgentPopover';
 import { ToolkitPanel } from './ToolkitPanel';
 import { SettingsModal } from './SettingsModal';
 import { HelpModal } from './HelpModal';
-import { TeamSection } from './TeamSection';
-import { AddTeamMemberModal } from './AddTeamMemberModal';
 
 interface Props {
   onNewSession: () => void;
@@ -15,36 +13,25 @@ interface Props {
 
 export function Sidebar({ onNewSession, onNewTeam }: Props) {
   const sessions = useSessionStore((s) => s.sessions);
-  const teams = useSessionStore((s) => s.teams);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const activeTeamId = useSessionStore((s) => s.activeTeamId);
   const setActive = useSessionStore((s) => s.setActiveSession);
+  const setActiveTeam = useSessionStore((s) => s.setActiveTeam);
   const removeSession = useSessionStore((s) => s.removeSession);
   const reorderSessions = useSessionStore((s) => s.reorderSessions);
   const renameSession = useSessionStore((s) => s.renameSession);
   const updateAvatarSeed = useSessionStore((s) => s.updateAvatarSeed);
-  const toggleTeamCollapsed = useSessionStore((s) => s.toggleTeamCollapsed);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [addMemberTeamId, setAddMemberTeamId] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Drag reorder state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  // Compute grouped data
-  const standaloneSessions = sessions.filter((s) => !s.teamId);
-  const teamGroups = teams.map((team) => ({
-    team,
-    sessions: sessions.filter((s) => s.teamId === team.id),
-  }));
-
-  // Get default cwd for add-member modal
-  const addMemberTeam = addMemberTeamId ? teams.find((t) => t.id === addMemberTeamId) : null;
-  const addMemberDefaultCwd = addMemberTeam
-    ? sessions.find((s) => s.teamId === addMemberTeam.id && s.teamRole === 'lead')?.cwd ?? ''
-    : '';
+  const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+  const [confirmDeleteTeam, setConfirmDeleteTeam] = useState<string | null>(null);
+  const deleteButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   const handleContextMenu = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
@@ -69,21 +56,9 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
         case 'rename':
           setRenamingId(sessionId);
           break;
-        case 'remove-from-team': {
-          // Untag the session from the team (keep the session running)
-          const session = sessions.find((s) => s.id === sessionId);
-          if (session) {
-            // Trigger a store update that clears team fields
-            useSessionStore.getState().removeSession(sessionId);
-            // Re-add as standalone (without team fields)
-            const { teamId, teamRole, teamAgentName, ...standalone } = session;
-            useSessionStore.getState().addSession(standalone);
-          }
-          break;
-        }
       }
     });
-  }, [setActive, handleKillSession, sessions]);
+  }, [setActive, handleKillSession]);
 
   const renamingSession = renamingId ? sessions.find((s) => s.id === renamingId) : null;
 
@@ -164,7 +139,11 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
               color: 'var(--text-secondary)',
               fontSize: 11,
               cursor: 'pointer',
-              padding: '2px 4px',
+              width: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               lineHeight: 1,
               opacity: 0.7,
               fontWeight: 700,
@@ -204,7 +183,7 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
       {/* Session list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
         {/* Standalone sessions */}
-        {standaloneSessions.map((session, index) => (
+        {sessions.filter((s) => !s.teamId).map((session, index) => (
           <div
             key={session.id}
             ref={(el) => {
@@ -215,7 +194,6 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
             onDragStart={(e) => {
               setDragIndex(index);
               e.dataTransfer.effectAllowed = 'move';
-              // Make the drag image semi-transparent
               if (e.currentTarget) {
                 e.dataTransfer.setDragImage(e.currentTarget, 0, 0);
               }
@@ -257,23 +235,149 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
           </div>
         ))}
 
-        {/* Team sections */}
-        {teamGroups.map(({ team, sessions: teamSessions }) => (
-          <TeamSection
-            key={team.id}
-            team={team}
-            sessions={teamSessions}
-            activeSessionId={activeSessionId}
-            onToggleCollapse={() => toggleTeamCollapsed(team.id)}
-            onSelectSession={(id) => setActive(id)}
-            onAddMember={() => setAddMemberTeamId(team.id)}
-            onDeleteTeam={async () => {
-              await window.electronAPI.deleteTeam(team.id);
-              useSessionStore.getState().removeTeam(team.id);
-            }}
-            onContextMenu={handleContextMenu}
-          />
-        ))}
+        {/* Team groups — auto-detected from native Claude Code teams */}
+        {(() => {
+          const teamIds = [...new Set(sessions.filter((s) => s.teamId).map((s) => s.teamId!))];
+          return teamIds.map((teamId) => {
+            const teamSessions = sessions.filter((s) => s.teamId === teamId);
+            const lead = teamSessions.find((s) => s.teamRole === 'lead');
+            return (
+              <div key={teamId} style={{ marginTop: 8 }}>
+                <div
+                onClick={() => setActiveTeam(teamId)}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: activeTeamId === teamId ? 'var(--text-primary)' : 'var(--text-muted)',
+                  padding: '6px 8px',
+                  borderBottom: '1px solid var(--border-default)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  background: activeTeamId === teamId ? 'var(--bg-card)' : 'transparent',
+                  borderRadius: 4,
+                  border: activeTeamId === teamId ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent',
+                }}>
+                  <span style={{ color: 'var(--accent)' }}>T</span>
+                  {teamId}
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                    ({teamSessions.length})
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollapsedTeams((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(teamId)) next.delete(teamId);
+                        else next.add(teamId);
+                        return next;
+                      });
+                    }}
+                    style={{
+                      marginLeft: 'auto',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      lineHeight: 1,
+                      padding: '0 2px',
+                      opacity: 0.7,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                    title={collapsedTeams.has(teamId) ? 'Expand team' : 'Collapse team'}
+                  >
+                    {collapsedTeams.has(teamId) ? '+' : '−'}
+                  </button>
+                  <button
+                    ref={(el) => { if (el) deleteButtonRefs.current.set(teamId, el); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteTeam(confirmDeleteTeam === teamId ? null : teamId);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      lineHeight: 1,
+                      padding: '0 2px',
+                      opacity: 0.7,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                    title="Delete team"
+                  >
+                    ×
+                  </button>
+                </div>
+                {/* Confirm delete popover */}
+                {confirmDeleteTeam === teamId && (() => {
+                  const btnEl = deleteButtonRefs.current.get(teamId);
+                  const rect = btnEl?.getBoundingClientRect();
+                  return (
+                    <div style={{
+                      position: 'relative',
+                      margin: '0 8px 4px',
+                      padding: '8px 10px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid #ef4444',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      color: 'var(--text-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}>
+                      <span>Delete team and kill all agents?</span>
+                      <button onClick={async (e) => {
+                        e.stopPropagation();
+                        // Kill all team sessions
+                        for (const s of teamSessions) {
+                          await window.electronAPI.killSession(s.id);
+                          removeSession(s.id);
+                        }
+                        setConfirmDeleteTeam(null);
+                      }} style={{
+                        padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                        background: '#ef4444', border: 'none', color: '#fff',
+                        fontSize: 11, fontWeight: 600,
+                      }}>Yes</button>
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteTeam(null);
+                      }} style={{
+                        padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                        background: 'transparent', border: '1px solid var(--border-default)',
+                        color: 'var(--text-secondary)', fontSize: 11,
+                      }}>No</button>
+                    </div>
+                  );
+                })()}
+                {!collapsedTeams.has(teamId) && teamSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(session.id, el);
+                      else cardRefs.current.delete(session.id);
+                    }}
+                    style={{ paddingLeft: 8 }}
+                  >
+                    <SessionCard
+                      session={session}
+                      isActive={session.id === activeSessionId}
+                      onClick={() => setActive(session.id)}
+                      onContextMenu={(e) => handleContextMenu(e, session.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {/* Toolkit */}
@@ -301,15 +405,6 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
             updateAvatarSeed(renamingId, seed);
           }}
           onClose={() => setRenamingId(null)}
-        />
-      )}
-
-      {/* Add team member modal */}
-      {addMemberTeamId && (
-        <AddTeamMemberModal
-          teamName={addMemberTeamId}
-          defaultCwd={addMemberDefaultCwd}
-          onClose={() => setAddMemberTeamId(null)}
         />
       )}
 

@@ -81,7 +81,10 @@ export const IPC = {
   SHELL_KILL: 'shell:kill',
   SHELL_DATA: 'shell:data',
   TEAM_CREATE: 'team:create',
-  TEAM_DELETE: 'team:delete',
   TEAM_LIST: 'team:list',
-  TEAM_ADD_MEMBER: 'team:add-member',
+  TEAM_SYNC: 'team:sync',
+  TEAM_SCAN_ROLES: 'team:scan-roles',
+  TEAM_SAVE_TEMPLATE: 'team:save-template',
+  TEAM_LOAD_TEMPLATES: 'team:load-templates',
+  TEAM_DELETE_TEMPLATE: 'team:delete-template',
 } as const;

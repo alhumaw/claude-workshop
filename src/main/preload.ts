@@ -130,22 +130,37 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: () =>
     ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE),
 
-  // Team management
-  createTeam: (params: { teamName: string; description: string; leadConfig: any; teammateConfigs: any[] }) =>
+  // Team management (native Claude Code teams)
+  createTeam: (params: { teamName: string; description: string; leadCwd: string; members: Array<{ name: string; model?: string; promptPath?: string }> }) =>
     ipcRenderer.invoke(IPC.TEAM_CREATE, params),
-  addTeamMember: (params: { teamName: string; memberConfig: any }) =>
-    ipcRenderer.invoke(IPC.TEAM_ADD_MEMBER, params),
-  deleteTeam: (teamName: string) =>
-    ipcRenderer.invoke(IPC.TEAM_DELETE, { teamName }),
   listTeams: () =>
     ipcRenderer.invoke(IPC.TEAM_LIST),
+  syncTeams: () =>
+    ipcRenderer.invoke(IPC.TEAM_SYNC),
 
-  // Team restoration
-  onTeamRestored: (callback: (team: any) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, team: any) => {
-      callback(team);
+  // Team watcher events from main process
+  onTeamConfigUpdate: (callback: (config: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, config: any) => {
+      callback(config);
     };
-    ipcRenderer.on('team:restored', listener);
-    return () => ipcRenderer.removeListener('team:restored', listener);
+    ipcRenderer.on('team:config-update', listener);
+    return () => ipcRenderer.removeListener('team:config-update', listener);
   },
+  onTeamMemberAdded: (callback: (data: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: any) => {
+      callback(data);
+    };
+    ipcRenderer.on('team:member-added', listener);
+    return () => ipcRenderer.removeListener('team:member-added', listener);
+  },
+
+  // Roles & Templates
+  scanRoles: () =>
+    ipcRenderer.invoke(IPC.TEAM_SCAN_ROLES),
+  saveTeamTemplate: (template: any) =>
+    ipcRenderer.invoke(IPC.TEAM_SAVE_TEMPLATE, template),
+  loadTeamTemplates: () =>
+    ipcRenderer.invoke(IPC.TEAM_LOAD_TEMPLATES),
+  deleteTeamTemplate: (templateId: string) =>
+    ipcRenderer.invoke(IPC.TEAM_DELETE_TEMPLATE, { templateId }),
 });

@@ -1,9 +1,9 @@
 import { ipcMain, BrowserWindow, Menu, dialog } from 'electron';
 import { SessionManager } from './session-manager';
 import { ShellTerminal } from './shell-terminal';
-import { TeamManager } from './team-manager';
-import { IPC, AppConfig, TeamMemberConfig, TeamInfo, SessionInfo } from '../shared/types';
-import { readFile, writeFile, unlink, stat, rm } from 'fs/promises';
+import { TeamWatcher } from './team-watcher';
+import { IPC, AppConfig } from '../shared/types';
+import { writeFile, readFile, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import { homedir } from 'os';
 import { tmpdir } from 'os';
@@ -14,10 +14,9 @@ import { exportToObsidian } from './obsidian-exporter';
 export function registerIpcHandlers(
   sessionManager: SessionManager,
   getWindow: () => BrowserWindow | null,
-  shellTerminal: ShellTerminal
+  shellTerminal: ShellTerminal,
+  teamWatcher: TeamWatcher
 ): void {
-  const teamManager = new TeamManager();
-
   // Helper: wire PTY data from a session to the renderer
   function wirePtyData(sessionId: string): void {
     sessionManager.setOnData(sessionId, (data) => {
@@ -287,202 +286,135 @@ export function registerIpcHandlers(
     return { ok: true };
   });
 
-  // ── Team Management ──────────────────────────────────────────────────
+  // ── Team Management (Native Claude Code Teams) ─────────────────────
 
-  // Create a team with lead + optional teammates
+  // Create a team — spawn the lead and tell it to create the team natively
   ipcMain.handle(IPC.TEAM_CREATE, async (_event, {
-    teamName, description, leadConfig, teammateConfigs,
+    teamName, description, leadCwd, members,
   }: {
     teamName: string;
     description: string;
-    leadConfig: TeamMemberConfig;
-    teammateConfigs: TeamMemberConfig[];
+    leadCwd: string;
+    members: Array<{ name: string; model?: string; promptPath?: string }>;
   }) => {
-    const rawLeadCwd = leadConfig.cwd || process.env.HOME || '/';
-    const leadCwd = rawLeadCwd.startsWith('~/')
-      ? rawLeadCwd.replace('~', homedir())
-      : rawLeadCwd === '~' ? homedir() : rawLeadCwd;
+    const cwd = leadCwd.startsWith('~/')
+      ? leadCwd.replace('~', homedir())
+      : leadCwd === '~' ? homedir() : leadCwd;
 
-    // Wipe any stale .workshop/ directory from a previous team with the same name
-    const staleWsDir = teamManager.workshopDir(leadCwd, teamName);
-    if (existsSync(staleWsDir)) {
-      await rm(staleWsDir, { recursive: true });
-    }
-
-    // Create project-local infrastructure BEFORE spawning agents.
-    await teamManager.addTeamPermissions(leadCwd, teamName);
-    await teamManager.initPalace(leadCwd, teamName);
-
-    // Pre-create all inboxes (project-local .workshop/ directory)
-    await teamManager.createInbox(leadCwd, teamName, leadConfig.name);
-    for (const tc of teammateConfigs) {
-      await teamManager.createInbox(leadCwd, teamName, tc.name);
-    }
-
-    // Pre-approve directory access via --add-dir AND additionalDirectories
-    const workshopDir = `${leadCwd}/.workshop/${teamName}`;
-    const inboxDir = teamManager.inboxDir(leadCwd, teamName);
-    const palacePath = teamManager.palacePath(leadCwd);
-
-    // NOW spawn agents (infrastructure already on disk)
-    const leadInfo = sessionManager.spawn(leadConfig.name, leadCwd, {
-      model: leadConfig.model,
+    // Spawn lead session with teams enabled
+    const leadInfo = sessionManager.spawn('team-lead', cwd, {
       teamName,
-      addDirs: [workshopDir],
-      palacePath,
     });
+    wirePtyData(leadInfo.id);
     leadInfo.teamId = teamName;
     leadInfo.teamRole = 'lead';
-    leadInfo.teamAgentName = leadConfig.name;
-    wirePtyData(leadInfo.id);
+    leadInfo.teamAgentName = 'team-lead';
 
-    // Collect teammate names for the lead prompt
-    const teammateNames = teammateConfigs.map((tc) => tc.name.trim()).filter(Boolean);
-
-    // Inject lead prompt with project-local inbox paths
-    sessionManager.injectLeadPrompt(
-      leadInfo.id, leadConfig.name, teamName, leadCwd, description, teammateNames,
-      leadConfig.promptFile || undefined,
-    );
-
-    const memberInfos: SessionInfo[] = [leadInfo];
-
-    // Spawn each teammate (infrastructure already created above)
-    for (const tc of teammateConfigs) {
-      const memberCwd = tc.cwd || leadCwd;
-
-      const memberInfo = sessionManager.spawn(tc.name, memberCwd, {
-        model: tc.model,
-        teamName,
-        addDirs: [workshopDir],
-        palacePath,
-      });
-      memberInfo.teamId = teamName;
-      memberInfo.teamRole = 'teammate';
-      memberInfo.teamAgentName = tc.name;
-      wirePtyData(memberInfo.id);
-
-      // Stagger teammate injection so PTY writes don't overlap.
-      // Each teammate gets an extra 3s per index to give the previous
-      // agent time to finish booting.
-      const staggerDelay = 8000 + (memberInfos.length - 1) * 3000;
-      sessionManager.injectTeammatePrompt(
-        memberInfo.id, tc.name, teamName,
-        leadConfig.name, leadCwd,
-        tc.promptFile || undefined,
-        staggerDelay,
-      );
-
-      memberInfos.push(memberInfo);
-    }
-
-    // Register team in SessionManager for persistence
-    const team: TeamInfo = {
-      id: teamName,
-      name: teamName,
-      description,
-      createdAt: Date.now(),
-      leadSessionId: leadInfo.id,
-      memberSessionIds: memberInfos.map((m) => m.id),
-      collapsed: false,
-    };
-    sessionManager.registerTeam(team);
-
-    return { teamName, team, members: memberInfos };
-  });
-
-  // Add a member to an existing team
-  ipcMain.handle(IPC.TEAM_ADD_MEMBER, async (_event, {
-    teamName, memberConfig,
-  }: {
-    teamName: string;
-    memberConfig: TeamMemberConfig;
-  }) => {
-    const rawMemberCwd = memberConfig.cwd || process.env.HOME || '/';
-    const memberCwd = rawMemberCwd.startsWith('~/')
-      ? rawMemberCwd.replace('~', homedir())
-      : rawMemberCwd === '~' ? homedir() : rawMemberCwd;
-
-    let promptContent: string | undefined;
-    if (memberConfig.promptFile) {
-      try { promptContent = await readFile(memberConfig.promptFile, 'utf-8'); } catch {}
-    }
-
-    // Find the lead to get the shared cwd for messaging
-    const allSessions = sessionManager.getAllStatus();
-    const leadSession = allSessions.find(
-      (s) => s.teamId === teamName && s.teamRole === 'lead'
-    );
-    const leadName = leadSession?.teamAgentName || 'team-lead';
-    const leadCwd = leadSession?.cwd || memberCwd;
-
-    // Create inbox for the new member (project-local, no ~/.claude/teams/ writes)
-    await teamManager.createInbox(leadCwd, teamName, memberConfig.name);
-
-    const addWorkshopDir = `${leadCwd}/.workshop/${teamName}`;
-    const addInboxDir = teamManager.inboxDir(leadCwd, teamName);
-    const addPalacePath = teamManager.palacePath(leadCwd);
-    const memberInfo = sessionManager.spawn(memberConfig.name, memberCwd, {
-      model: memberConfig.model,
-      teamName,
-      addDirs: [addWorkshopDir],
-      palacePath: addPalacePath,
-    });
-    memberInfo.teamId = teamName;
-    memberInfo.teamRole = 'teammate';
-    memberInfo.teamAgentName = memberConfig.name;
-    wirePtyData(memberInfo.id);
-
-    // Always inject teammate prompt (with or without prompt file)
-    sessionManager.injectTeammatePrompt(
-      memberInfo.id, memberConfig.name, teamName,
-      leadName, leadCwd,
-      memberConfig.promptFile || undefined,
-    );
-
-    // Notify the lead about the new teammate
-    if (leadSession) {
-      const modelNote = memberConfig.model ? ` (model: ${memberConfig.model})` : '';
-      sessionManager.injectPrompt(
-        leadSession.id,
-        `A new teammate '${memberConfig.name}'${modelNote} has joined team '${teamName}'. ` +
-        `Update your team awareness — you can now coordinate with them.`,
-        2000,
-      );
-    }
-
-    return memberInfo;
-  });
-
-  // Delete a team (disk infrastructure only; sessions remain but lose team tags)
-  ipcMain.handle(IPC.TEAM_DELETE, async (_event, { teamName }: { teamName: string }) => {
-    // Find lead cwd from active sessions (since we don't use ~/.claude/teams/ anymore)
-    const allSessions = sessionManager.getAllStatus();
-    const leadSession = allSessions.find(
-      (s) => s.teamId === teamName && s.teamRole === 'lead'
-    );
-    const leadCwd = leadSession?.cwd;
-
-    if (leadCwd) {
-      await teamManager.removeTeamPermissions(leadCwd, teamName);
-      // Clean up .workshop/ inbox files
-      const wsDir = teamManager.workshopDir(leadCwd, teamName);
-      if (existsSync(wsDir)) {
-        await rm(wsDir, { recursive: true });
+    // Build the prompt with role-specific instructions for each member
+    const memberInstructions = members.map((m) => {
+      let instruction = `"${m.name}"`;
+      if (m.promptPath) {
+        // Expand ~ for the prompt path
+        const expandedPath = m.promptPath.startsWith('~/')
+          ? m.promptPath.replace('~', homedir())
+          : m.promptPath;
+        instruction += ` (role prompt: ${expandedPath} — tell this agent to read and follow that file)`;
       }
+      if (m.model) {
+        instruction += ` [model: ${m.model}]`;
+      }
+      return instruction;
+    });
+
+    const prompt = [
+      `Create a team called "${teamName}".`,
+      `Description: ${description}`,
+      members.length > 0
+        ? `Spawn these teammates using the Agent tool: ${memberInstructions.join(', ')}. For each agent that has a role prompt, include in its spawn prompt: "Read the instructions at <path> and follow them as your role definition."`
+        : '',
+      `Use TeamCreate to set up the team, then use the Agent tool to spawn each teammate.`,
+      `After the team is set up, wait for instructions from the user.`,
+    ].filter(Boolean).join(' ');
+
+    sessionManager.injectPrompt(leadInfo.id, prompt);
+
+    return { leadInfo };
+  });
+
+  // Sync team state from native configs
+  ipcMain.handle(IPC.TEAM_SYNC, () => {
+    return teamWatcher.getAllTeams();
+  });
+
+  // List native teams
+  ipcMain.handle(IPC.TEAM_LIST, () => {
+    return teamWatcher.getAllTeams();
+  });
+
+  // ── Roles & Templates ───────────────────────────────────────────────
+
+  // Scan ~/.claude/prompts/ for available agent roles
+  ipcMain.handle(IPC.TEAM_SCAN_ROLES, async () => {
+    const promptsDir = path.join(homedir(), '.claude', 'prompts');
+    try {
+      const { readdir } = require('fs/promises');
+      const entries = await readdir(promptsDir, { withFileTypes: true });
+      const roles: Array<{ name: string; promptPath: string }> = [];
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const promptFile = path.join(promptsDir, entry.name, 'PROMPT.md');
+          if (existsSync(promptFile)) {
+            roles.push({
+              name: entry.name,
+              promptPath: `~/.claude/prompts/${entry.name}/PROMPT.md`,
+            });
+          }
+        }
+      }
+      return roles.sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      return [];
     }
-    sessionManager.removeTeam(teamName);
+  });
+
+  // Save a custom team template
+  ipcMain.handle(IPC.TEAM_SAVE_TEMPLATE, async (_event, template: any) => {
+    const dir = path.join(homedir(), '.agentmux');
+    if (!existsSync(dir)) await require('fs/promises').mkdir(dir, { recursive: true });
+    const templatesFile = path.join(dir, 'templates.json');
+    let templates: any[] = [];
+    try {
+      const data = await readFile(templatesFile, 'utf-8');
+      templates = JSON.parse(data);
+    } catch {}
+    const idx = templates.findIndex((t: any) => t.id === template.id);
+    if (idx >= 0) templates[idx] = template;
+    else templates.push(template);
+    await writeFile(templatesFile, JSON.stringify(templates, null, 2));
     return { ok: true };
   });
 
-  // List teams from disk
-  ipcMain.handle(IPC.TEAM_LIST, async () => {
-    const names = await teamManager.listTeams();
-    const configs = [];
-    for (const name of names) {
-      const config = await teamManager.readTeamConfig(name);
-      if (config) configs.push(config);
+  // Load custom team templates
+  ipcMain.handle(IPC.TEAM_LOAD_TEMPLATES, async () => {
+    const templatesFile = path.join(homedir(), '.agentmux', 'templates.json');
+    try {
+      const data = await readFile(templatesFile, 'utf-8');
+      return JSON.parse(data);
+    } catch {
+      return [];
     }
-    return configs;
+  });
+
+  // Delete a custom team template
+  ipcMain.handle(IPC.TEAM_DELETE_TEMPLATE, async (_event, { templateId }: { templateId: string }) => {
+    const templatesFile = path.join(homedir(), '.agentmux', 'templates.json');
+    try {
+      const data = await readFile(templatesFile, 'utf-8');
+      const templates = JSON.parse(data).filter((t: any) => t.id !== templateId);
+      await writeFile(templatesFile, JSON.stringify(templates, null, 2));
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
   });
 }

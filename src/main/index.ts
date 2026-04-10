@@ -3,8 +3,7 @@ import path from 'path';
 import { SessionManager } from './session-manager';
 import { ShellTerminal } from './shell-terminal';
 import { registerIpcHandlers } from './ipc-handlers';
-import { InboxRelay } from './inbox-relay';
-import { TeamManager } from './team-manager';
+import { TeamWatcher } from './team-watcher';
 import { IPC } from '../shared/types';
 import { saveSessions, loadSessions, clearSessions } from './persistence';
 
@@ -121,28 +120,96 @@ app.whenReady().then(async () => {
   sessionManager = new SessionManager();
   sessionManager.setWindowGetter(() => mainWindow);
   shellTerminal = new ShellTerminal();
-  registerIpcHandlers(sessionManager, () => mainWindow, shellTerminal);
+  const teamWatcher = new TeamWatcher();
+  teamWatcher.setWindowGetter(() => mainWindow);
+  registerIpcHandlers(sessionManager, () => mainWindow, shellTerminal, teamWatcher);
   createWindow();
   registerShortcuts();
 
-  // Start inbox relay for team message delivery
-  const inboxRelay = new InboxRelay(sessionManager);
-  inboxRelay.start(3000);
+  // Start watching native team configs — attach terminals when new members appear
+  teamWatcher.setOnMemberAdded((config, member) => {
+    // Check if we already have a session for this agent
+    const existing = sessionManager.getAllStatus().find(
+      (s) => s.teamId === config.name && s.teamAgentName === member.name
+    );
+    if (existing) return;
+
+    // For the lead, find the existing Workshop session and tag it
+    if (member.agentId === config.leadAgentId) {
+      const allSessions = sessionManager.getAllStatus();
+      // Try matching by claudeSessionId first
+      let leadSession = allSessions.find(
+        (s) => s.claudeSessionId === config.leadSessionId
+      );
+      // Fallback: find any untagged session in the same cwd
+      if (!leadSession) {
+        leadSession = allSessions.find(
+          (s) => !s.teamId && s.cwd === member.cwd
+        );
+      }
+      // Last resort: find any session without a team
+      if (!leadSession) {
+        leadSession = allSessions.find((s) => !s.teamId && s.status !== 'exited');
+      }
+      if (leadSession) {
+        const managed = sessionManager.getSession(leadSession.id);
+        if (managed) {
+          managed.info.teamId = config.name;
+          managed.info.teamRole = 'lead';
+          managed.info.teamAgentName = member.name;
+          console.log(`[Workshop] tagged lead ${leadSession.name} → ${member.name}@${config.name} (matched by ${leadSession.claudeSessionId === config.leadSessionId ? 'sessionId' : 'fallback'})`);
+        }
+      } else {
+        console.log(`[Workshop] could not find lead session for ${config.name}, leadSessionId=${config.leadSessionId}`);
+      }
+      return;
+    }
+
+    // Kill the tmux pane so there's no duplicate agent
+    if (member.tmuxPaneId) {
+      const socketName = teamWatcher.findSwarmSocketForTeam(config);
+      if (socketName) {
+        try {
+          require('child_process').execFileSync('tmux', ['-L', socketName, 'kill-pane', '-t', member.tmuxPaneId], {
+            stdio: 'ignore', timeout: 3000,
+          });
+          console.log(`[Workshop] killed tmux pane ${member.tmuxPaneId} on ${socketName}`);
+        } catch {}
+      }
+    }
+
+    // Spawn the agent natively in a Workshop terminal
+    console.log(`[Workshop] spawning ${member.name}@${config.name} as Workshop terminal`);
+    const info = sessionManager.spawnTeamAgent({
+      agentId: member.agentId,
+      agentName: member.name,
+      teamName: config.name,
+      parentSessionId: config.leadSessionId,
+      model: member.model,
+      color: member.color,
+      cwd: member.cwd,
+    });
+
+    // Wire PTY data to renderer
+    sessionManager.setOnData(info.id, (data) => {
+      if (mainWindow) {
+        mainWindow.webContents.send(IPC.TERMINAL_DATA, { sessionId: info.id, data });
+      }
+    });
+
+    // Notify renderer
+    if (mainWindow) {
+      mainWindow.webContents.send('session:restored', info);
+    }
+  });
+  teamWatcher.start();
 
   // Restore persisted sessions — spawn PTY processes now, but wait
   // until the renderer finishes loading before sending IPC
   const savedState = await loadSessions();
   const restoredSessions: import('../shared/types').SessionInfo[] = [];
-  const restoredTeams: import('../shared/types').TeamInfo[] = [];
 
-  if (savedState) {
-    // Restore teams to SessionManager
-    for (const team of savedState.teams ?? []) {
-      sessionManager.registerTeam(team);
-      restoredTeams.push(team);
-    }
-
-    // Restore sessions
+  if (savedState && savedState.sessions.length > 0) {
     for (const saved of savedState.sessions) {
       const info = sessionManager.spawn(saved.name, saved.cwd, {
         resumeSessionId: saved.claudeSessionId,
@@ -157,9 +224,6 @@ app.whenReady().then(async () => {
       info.teamRole = saved.teamRole;
       info.teamAgentName = saved.teamAgentName;
 
-      // Clear the ring buffer after a short delay so Claude's startup
-      // spinner output doesn't make parseStatus return 'thinking'.
-      // The buffer will rebuild from fresh output after the delay.
       setTimeout(() => sessionManager.clearBuffer(info.id), 3000);
 
       sessionManager.setOnData(info.id, (data) => {
@@ -170,28 +234,12 @@ app.whenReady().then(async () => {
 
       restoredSessions.push(info);
     }
-
-    // Re-create inbox files for team sessions so the relay can poll them
-    const teamMgr = new TeamManager();
-    const teamCwds = new Map<string, string>(); // teamId → leadCwd
-    for (const s of restoredSessions) {
-      if (s.teamId && s.teamRole === 'lead') teamCwds.set(s.teamId, s.cwd);
-    }
-    for (const s of restoredSessions) {
-      if (s.teamId && s.teamAgentName) {
-        const leadCwd = teamCwds.get(s.teamId) ?? s.cwd;
-        await teamMgr.createInbox(leadCwd, s.teamId, s.teamAgentName);
-      }
-    }
     await clearSessions();
   }
 
-  // Once the renderer is ready, push restored sessions and teams
-  if (mainWindow && (restoredSessions.length > 0 || restoredTeams.length > 0)) {
+  // Once the renderer is ready, push restored sessions
+  if (mainWindow && restoredSessions.length > 0) {
     mainWindow.webContents.once('did-finish-load', () => {
-      for (const team of restoredTeams) {
-        mainWindow!.webContents.send('team:restored', team);
-      }
       for (const info of restoredSessions) {
         mainWindow!.webContents.send('session:restored', info);
       }
@@ -217,9 +265,8 @@ app.on('before-quit', (event) => {
   isQuitting = true;
 
   const sessions = sessionManager.getAllStatus();
-  const teams = sessionManager.getAllTeams();
   Promise.all([
-    saveSessions(sessions, teams, null),
+    saveSessions(sessions, null),
   ]).finally(() => {
     globalShortcut.unregisterAll();
     shellTerminal.killAll();

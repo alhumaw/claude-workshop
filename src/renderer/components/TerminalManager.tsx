@@ -26,9 +26,10 @@ function serializeTerminal(term: Terminal): string {
 interface TerminalViewProps {
   sessionId: string;
   visible: boolean;
+  fontSize?: number;
 }
 
-function TerminalView({ sessionId, visible }: TerminalViewProps) {
+function TerminalView({ sessionId, visible, fontSize = 13 }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -63,7 +64,7 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
         brightWhite: '#ffffff',
       },
       fontFamily: "'MesloLGS NF', 'Hack Nerd Font', 'FiraCode Nerd Font', 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-      fontSize: 13,
+      fontSize,
       lineHeight: 1.2,
       cursorBlink: true,
       allowProposedApi: true,
@@ -268,9 +269,32 @@ function TerminalView({ sessionId, visible }: TerminalViewProps) {
   );
 }
 
+function AgentLabel({ session }: { session: any }) {
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 2,
+      right: 8,
+      zIndex: 15,
+      fontSize: 10,
+      fontWeight: 600,
+      color: 'var(--text-muted)',
+      background: 'rgba(26, 26, 26, 0.8)',
+      padding: '1px 6px',
+      borderRadius: 3,
+      pointerEvents: 'none',
+    }}>
+      {session.teamRole === 'lead' ? '★ ' : ''}{session.teamAgentName || session.name}
+    </div>
+  );
+}
+
 export function TerminalManager() {
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const activeTeamId = useSessionStore((s) => s.activeTeamId);
+  const teamPage = useSessionStore((s) => s.teamPage);
+  const cycleTeamPage = useSessionStore((s) => s.cycleTeamPage);
   const getCallbacks = useSessionStore((s) => s.getTerminalCallbacks);
 
   // Route incoming terminal data to the right callbacks
@@ -306,6 +330,119 @@ export function TerminalManager() {
     );
   }
 
+  // Team split view — show all team members side by side
+  const teamSessions = activeTeamId
+    ? sessions.filter((s) => s.teamId === activeTeamId)
+    : [];
+
+  if (activeTeamId && teamSessions.length > 0) {
+    const PAGE_SIZE = 4;
+    const totalPages = Math.ceil(teamSessions.length / PAGE_SIZE);
+    const page = teamPage % totalPages;
+    const visible = teamSessions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    const count = visible.length;
+    const teamFontSize = count <= 2 ? 12 : 11;
+
+    // Layout: 1=full, 2=side-by-side, 3=1top+2bottom, 4=2x2
+    const renderGrid = () => {
+      if (count === 1) {
+        return (
+          <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+            <AgentLabel session={visible[0]} />
+            <TerminalView sessionId={visible[0].id} visible={true} fontSize={teamFontSize} />
+          </div>
+        );
+      }
+      if (count === 2) {
+        return (
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            <div style={{ flex: 1, position: 'relative', borderRight: '2px solid var(--border-default)', minWidth: 0 }}>
+              <AgentLabel session={visible[0]} />
+              <TerminalView sessionId={visible[0].id} visible={true} fontSize={teamFontSize} />
+            </div>
+            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+              <AgentLabel session={visible[1]} />
+              <TerminalView sessionId={visible[1].id} visible={true} fontSize={teamFontSize} />
+            </div>
+          </div>
+        );
+      }
+      if (count === 3) {
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ flex: 1, position: 'relative', borderBottom: '2px solid var(--border-default)', minHeight: 0 }}>
+              <AgentLabel session={visible[0]} />
+              <TerminalView sessionId={visible[0].id} visible={true} fontSize={teamFontSize} />
+            </div>
+            <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+              <div style={{ flex: 1, position: 'relative', borderRight: '2px solid var(--border-default)', minWidth: 0 }}>
+                <AgentLabel session={visible[1]} />
+                <TerminalView sessionId={visible[1].id} visible={true} fontSize={teamFontSize} />
+              </div>
+              <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+                <AgentLabel session={visible[2]} />
+                <TerminalView sessionId={visible[2].id} visible={true} fontSize={teamFontSize} />
+              </div>
+            </div>
+          </div>
+        );
+      }
+      // count === 4: 2x2 grid
+      return (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'flex', borderBottom: '2px solid var(--border-default)', minHeight: 0 }}>
+            <div style={{ flex: 1, position: 'relative', borderRight: '2px solid var(--border-default)', minWidth: 0 }}>
+              <AgentLabel session={visible[0]} />
+              <TerminalView sessionId={visible[0].id} visible={true} fontSize={teamFontSize} />
+            </div>
+            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+              <AgentLabel session={visible[1]} />
+              <TerminalView sessionId={visible[1].id} visible={true} fontSize={teamFontSize} />
+            </div>
+          </div>
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            <div style={{ flex: 1, position: 'relative', borderRight: '2px solid var(--border-default)', minWidth: 0 }}>
+              <AgentLabel session={visible[2]} />
+              <TerminalView sessionId={visible[2].id} visible={true} fontSize={teamFontSize} />
+            </div>
+            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+              <AgentLabel session={visible[3]} />
+              <TerminalView sessionId={visible[3].id} visible={true} fontSize={teamFontSize} />
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {renderGrid()}
+        {totalPages > 1 && (
+          <div style={{
+            position: 'absolute',
+            bottom: 4,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 20,
+            fontSize: 10,
+            color: 'var(--text-muted)',
+            background: 'rgba(26, 26, 26, 0.85)',
+            padding: '2px 8px',
+            borderRadius: 4,
+            border: '1px solid var(--border-default)',
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+          }}
+          onClick={() => cycleTeamPage()}
+          >
+            Page {page + 1}/{totalPages} — click for next
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Single session view
   return (
     <div style={{ flex: 1, position: 'relative' }}>
       {sessions.map((s) => (

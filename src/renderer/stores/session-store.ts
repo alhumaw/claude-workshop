@@ -1,13 +1,16 @@
 import { create } from 'zustand';
-import { SessionInfo, TeamInfo } from '../../shared/types';
+import { SessionInfo } from '../../shared/types';
 
 interface SessionStore {
   sessions: SessionInfo[];
-  teams: TeamInfo[];
   activeSessionId: string | null;
+  activeTeamId: string | null;
+  teamPage: number;
   terminalDataCallbacks: Map<string, ((data: string) => void)[]>;
 
   setActiveSession: (id: string) => void;
+  setActiveTeam: (teamId: string | null) => void;
+  cycleTeamPage: () => void;
   addSession: (session: SessionInfo) => void;
   removeSession: (id: string) => void;
   reorderSessions: (fromIndex: number, toIndex: number) => void;
@@ -18,27 +21,26 @@ interface SessionStore {
   getTerminalCallbacks: (sessionId: string) => ((data: string) => void)[];
   handoffSession: (sessionId: string) => Promise<void>;
   freshSession: (sessionId: string) => Promise<void>;
-
-  // Team actions
-  addTeam: (team: TeamInfo) => void;
-  removeTeam: (teamId: string) => void;
-  toggleTeamCollapsed: (teamId: string) => void;
-  createTeam: (params: {
-    teamName: string;
-    description: string;
-    leadConfig: any;
-    teammateConfigs: any[];
-  }) => Promise<void>;
-  addTeamMember: (teamName: string, memberConfig: any) => Promise<void>;
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   sessions: [],
-  teams: [],
   activeSessionId: null,
+  activeTeamId: null,
+  teamPage: 0,
   terminalDataCallbacks: new Map(),
 
-  setActiveSession: (id) => set({ activeSessionId: id }),
+  setActiveSession: (id) => set({ activeSessionId: id, activeTeamId: null, teamPage: 0 }),
+
+  setActiveTeam: (teamId) => set((state) => {
+    if (state.activeTeamId === teamId) {
+      // Already active — cycle to next page
+      return { teamPage: state.teamPage + 1 };
+    }
+    return { activeTeamId: teamId, activeSessionId: null, teamPage: 0 };
+  }),
+
+  cycleTeamPage: () => set((state) => ({ teamPage: state.teamPage + 1 })),
 
   addSession: (session) =>
     set((state) => ({
@@ -53,13 +55,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         state.activeSessionId === id
           ? sessions[0]?.id ?? null
           : state.activeSessionId;
-      // Also remove from team memberSessionIds
-      const teams = state.teams.map((t) => ({
-        ...t,
-        memberSessionIds: t.memberSessionIds.filter((sid) => sid !== id),
-        leadSessionId: t.leadSessionId === id ? null : t.leadSessionId,
-      }));
-      return { sessions, activeSessionId, teams };
+      return { sessions, activeSessionId };
     }),
 
   reorderSessions: (fromIndex, toIndex) =>
@@ -141,52 +137,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const newSession = await window.electronAPI.freshSession(sessionId);
     set((state) => ({
       sessions: [...state.sessions, newSession],
-      activeSessionId: newSession.id,
-    }));
-  },
-
-  // ── Team actions ──────────────────────────────────────────────────
-
-  addTeam: (team) =>
-    set((state) => ({
-      teams: [...state.teams, team],
-    })),
-
-  removeTeam: (teamId) =>
-    set((state) => ({
-      teams: state.teams.filter((t) => t.id !== teamId),
-      sessions: state.sessions.map((s) =>
-        s.teamId === teamId
-          ? { ...s, teamId: undefined, teamRole: undefined, teamAgentName: undefined }
-          : s
-      ),
-    })),
-
-  toggleTeamCollapsed: (teamId) =>
-    set((state) => ({
-      teams: state.teams.map((t) =>
-        t.id === teamId ? { ...t, collapsed: !t.collapsed } : t
-      ),
-    })),
-
-  createTeam: async (params) => {
-    const result = await window.electronAPI.createTeam(params);
-    set((state) => ({
-      teams: [...state.teams, result.team],
-      sessions: [...state.sessions, ...result.members],
-      activeSessionId: result.members[0]?.id ?? state.activeSessionId,
-    }));
-  },
-
-  addTeamMember: async (teamName, memberConfig) => {
-    const newSession = await window.electronAPI.addTeamMember({ teamName, memberConfig });
-    set((state) => ({
-      sessions: [...state.sessions, newSession],
-      teams: state.teams.map((t) =>
-        t.id === teamName
-          ? { ...t, memberSessionIds: [...t.memberSessionIds, newSession.id] }
-          : t
-      ),
       activeSessionId: newSession.id,
     }));
   },

@@ -37,11 +37,15 @@ declare global {
       resizeShell: (id: string, cols: number, rows: number) => void;
       killShell: (id: string) => Promise<{ ok: boolean }>;
       onShellData: (callback: (id: string, data: string) => void) => () => void;
-      createTeam: (params: { teamName: string; description: string; leadConfig: any; teammateConfigs: any[] }) => Promise<{ teamName: string; team: any; members: any[] }>;
-      addTeamMember: (params: { teamName: string; memberConfig: any }) => Promise<any>;
-      deleteTeam: (teamName: string) => Promise<{ ok: boolean }>;
+      createTeam: (params: { teamName: string; description: string; leadCwd: string; members: Array<{ name: string; model?: string; promptPath?: string }> }) => Promise<{ leadInfo: any }>;
       listTeams: () => Promise<any[]>;
-      onTeamRestored: (callback: (team: any) => void) => () => void;
+      syncTeams: () => Promise<any[]>;
+      onTeamConfigUpdate: (callback: (config: any) => void) => () => void;
+      onTeamMemberAdded: (callback: (data: any) => void) => () => void;
+      scanRoles: () => Promise<Array<{ name: string; promptPath: string }>>;
+      saveTeamTemplate: (template: any) => Promise<{ ok: boolean }>;
+      loadTeamTemplates: () => Promise<any[]>;
+      deleteTeamTemplate: (templateId: string) => Promise<{ ok: boolean }>;
     };
   }
 }
@@ -55,7 +59,6 @@ export default function App() {
   const setActive = useSessionStore((s) => s.setActiveSession);
   const addSession = useSessionStore((s) => s.addSession);
   const removeSession = useSessionStore((s) => s.removeSession);
-  const addTeam = useSessionStore((s) => s.addTeam);
 
   // Status polling
   useEffect(() => {
@@ -113,13 +116,6 @@ export default function App() {
       addSession(session);
     });
   }, [addSession]);
-
-  // Handle restored teams from persistence
-  useEffect(() => {
-    return window.electronAPI.onTeamRestored((team) => {
-      addTeam(team);
-    });
-  }, [addTeam]);
 
   return (
     <>

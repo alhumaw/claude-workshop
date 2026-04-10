@@ -4,6 +4,7 @@ import { ShellPanel } from './ShellPanel';
 import { Sidebar } from './Sidebar';
 import { TitleBar } from './TitleBar';
 import { TabBar } from './TabBar';
+import { useSessionStore } from '../stores/session-store';
 
 const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 600;
@@ -107,7 +108,11 @@ export function Layout({ onNewSession, onNewTeam }: Props) {
     return window.electronAPI.onShortcut('shortcut:toggle-shell', handler);
   }, []);
 
-  const shellTotal = shellVisible ? shellHeight + 4 : 0;
+  const activeTeamId = useSessionStore((s) => s.activeTeamId);
+
+  // Auto-hide shell panel when viewing a team (need the space)
+  const effectiveShellVisible = shellVisible && !activeTeamId;
+  const shellTotal = effectiveShellVisible ? shellHeight + 4 : 0;
 
   return (
     <div style={{
@@ -143,7 +148,7 @@ export function Layout({ onNewSession, onNewTeam }: Props) {
           </div>
 
           {/* Shell horizontal drag handle */}
-          {shellVisible && (
+          {effectiveShellVisible && (
             <div
               ref={shellHandleRef}
               onMouseDown={onShellMouseDown}
@@ -163,7 +168,7 @@ export function Layout({ onNewSession, onNewTeam }: Props) {
           )}
 
           {/* Shell panel */}
-          {shellVisible && (
+          {effectiveShellVisible && (
             <div
               ref={shellWrapRef}
               style={{
@@ -174,7 +179,7 @@ export function Layout({ onNewSession, onNewTeam }: Props) {
                 height: shellHeight,
               }}
             >
-              <ShellPanel visible={shellVisible} onClose={() => setShellVisible(false)} />
+              <ShellPanel visible={effectiveShellVisible} onClose={() => setShellVisible(false)} />
             </div>
           )}
         </div>

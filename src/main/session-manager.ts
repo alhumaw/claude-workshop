@@ -1,5 +1,5 @@
 import * as pty from 'node-pty';
-import { SessionInfo, TeamInfo, IPC } from '../shared/types';
+import { SessionInfo, IPC } from '../shared/types';
 import { parseStatus, parseContext, parseContextSize, parseCost, parseModel, parseAwaitingApproval } from './parsers';
 import { randomBytes, randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
@@ -16,7 +16,6 @@ const MAX_BUFFER = 8000; // chars to keep in ring buffer
 
 export class SessionManager {
   private sessions = new Map<string, ManagedSession>();
-  private teams = new Map<string, TeamInfo>();
   private getWindow: (() => BrowserWindow | null) | null = null;
 
   setWindowGetter(fn: () => BrowserWindow | null): void {
@@ -138,6 +137,86 @@ export class SessionManager {
     return info;
   }
 
+  /**
+   * Spawn a native team agent using Claude Code's team CLI flags.
+   * This replaces the tmux pane approach — Workshop owns the PTY directly.
+   */
+  spawnTeamAgent(opts: {
+    agentId: string;      // e.g. "alpha@debug-comms"
+    agentName: string;    // e.g. "alpha"
+    teamName: string;
+    parentSessionId: string; // lead's Claude session UUID
+    model?: string;
+    color?: string;
+    cwd: string;
+  }): SessionInfo {
+    const id = randomBytes(8).toString('hex');
+    const shell = process.env.SHELL || '/bin/zsh';
+    const workingDir = opts.cwd || process.env.HOME || '/';
+
+    let cmd = `claude --agent-id '${opts.agentId}' --agent-name '${opts.agentName}' --team-name '${opts.teamName}' --parent-session-id ${opts.parentSessionId}`;
+    if (opts.model) cmd += ` --model '${opts.model}'`;
+    if (opts.color) cmd += ` --agent-color '${opts.color}'`;
+
+    console.log(`[Workshop:spawnTeamAgent] ${cmd}`);
+
+    const ptyProcess = pty.spawn(shell, ['-l', '-c', cmd], {
+      name: 'xterm-256color',
+      cwd: workingDir,
+      env: {
+        ...process.env,
+        TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
+        CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
+      } as Record<string, string>,
+      cols: 120,
+      rows: 30,
+    });
+
+    const info: SessionInfo = {
+      id,
+      name: opts.agentName,
+      status: 'idle',
+      branch: '',
+      model: opts.model || '',
+      contextPercent: 0,
+      contextSize: '',
+      cost: '',
+      lastActivity: Date.now(),
+      cwd: workingDir,
+      avatarSeed: randomBytes(4).toString('hex'),
+      claudeSessionId: '',
+      awaitingApproval: false,
+      teamId: opts.teamName,
+      teamRole: 'teammate',
+      teamAgentName: opts.agentName,
+    };
+
+    const managed: ManagedSession = {
+      info,
+      pty: ptyProcess,
+      buffer: '',
+    };
+
+    ptyProcess.onData((data) => {
+      managed.buffer += data;
+      if (managed.buffer.length > MAX_BUFFER) {
+        managed.buffer = managed.buffer.slice(-MAX_BUFFER);
+      }
+      managed.info.lastActivity = Date.now();
+      if (managed.onDataCallback) {
+        managed.onDataCallback(data);
+      }
+    });
+
+    ptyProcess.onExit(() => {
+      managed.info.status = 'exited';
+    });
+
+    this.sessions.set(id, managed);
+    return info;
+  }
+
   write(sessionId: string, data: string): void {
     const session = this.sessions.get(sessionId);
     if (session && session.info.status !== 'exited') {
@@ -237,108 +316,9 @@ export class SessionManager {
   injectPrompt(sessionId: string, prompt: string, delayMs = 8000): void {
     setTimeout(() => {
       this.write(sessionId, prompt);
-      // Send Enter separately after a brief gap so the TUI processes the text first
       setTimeout(() => this.write(sessionId, '\r'), 150);
     }, delayMs);
   }
-
-  /**
-   * Inject a team-aware prompt for the lead agent.
-   * Workshop owns the team infrastructure — the lead must NOT call
-   * TeamCreate (it creates a conflicting duplicate). Instead the lead
-   * communicates via inbox files, and Workshop auto-delivers messages.
-   */
-  injectLeadPrompt(
-    sessionId: string,
-    leadName: string,
-    teamName: string,
-    leadCwd: string,
-    description: string,
-    teammateNames: string[],
-    promptFilePath?: string,
-    delayMs = 8000,
-    palacePath?: string,
-  ): void {
-    const inboxBase = `${leadCwd}/.workshop/${teamName}/inboxes`;
-    const parts: string[] = [];
-    parts.push(
-      `You are '${leadName}', the lead of team '${teamName}'.`,
-      `IMPORTANT: Do NOT use TeamCreate or SendMessage — the team infrastructure is managed by the Workshop UI.`,
-      `IMPORTANT: Do NOT explore the codebase, scan directories, or search for context on your own. Do NOT read files outside the project directory unless explicitly instructed.`,
-    );
-    if (teammateNames.length > 0) {
-      parts.push(
-        `Your teammates (${teammateNames.join(', ')}) are running in separate terminal sessions.`,
-        `Do NOT spawn them via Task — they are already active.`,
-      );
-    }
-    parts.push(
-      `To send a message to a teammate, use Bash to append to their inbox (one JSON per line):`,
-    );
-    for (const name of teammateNames) {
-      parts.push(
-        `  To message '${name}': echo '{"from":"${leadName}","text":"your message"}' >> ${inboxBase}/${name}.jsonl`,
-      );
-    }
-    parts.push(
-      `Messages sent to your inbox at ${inboxBase}/${leadName}.jsonl will be delivered to you automatically — no need to poll.`,
-    );
-    if (palacePath) {
-      parts.push(
-        `MEMORY: You have access to a shared MemPalace (MCP tools starting with mempalace_). Use mempalace_diary_write to journal your work. Use mempalace_search to find past knowledge. Use mempalace_diary_read to check what teammates have recorded.`,
-      );
-    }
-    if (promptFilePath) {
-      parts.push(`Read ONLY the instructions at ${promptFilePath} and follow them. After loading your instructions, WAIT for a directive from the user. Do NOT take autonomous action until given a task.`);
-    } else {
-      parts.push(`WAIT for a directive from the user. Do NOT take autonomous action until given a task.`);
-    }
-    this.injectPrompt(sessionId, parts.join(' '), delayMs);
-  }
-
-  /**
-   * Inject a team-aware prompt for a teammate agent.
-   * Tells the teammate how to communicate via inbox files.
-   * Workshop auto-delivers incoming messages, so no polling needed.
-   */
-  injectTeammatePrompt(
-    sessionId: string,
-    agentName: string,
-    teamName: string,
-    leadName: string,
-    leadCwd: string,
-    promptFilePath?: string,
-    delayMs = 8000,
-    palacePath?: string,
-  ): void {
-    const inboxBase = `${leadCwd}/.workshop/${teamName}/inboxes`;
-    const parts: string[] = [];
-    parts.push(
-      `You are ${agentName}, a teammate in team '${teamName}'. Your lead is '${leadName}'.`,
-      `IMPORTANT: Do NOT use TeamCreate or SendMessage — the team is managed by the Workshop UI.`,
-      `IMPORTANT: Do NOT explore the codebase, scan directories, or search for context on your own. Do NOT read files outside the project directory unless explicitly instructed. Stay in your lane.`,
-      `To send a message, use Bash to append to the recipient's inbox (one JSON per line):`,
-      `echo '{"from":"${agentName}","text":"your message"}' >> ${inboxBase}/${leadName}.jsonl`,
-      `For other teammates, replace the filename: ${inboxBase}/{their-name}.jsonl`,
-      `Messages sent to your inbox at ${inboxBase}/${agentName}.jsonl will be delivered to you automatically — no need to poll.`,
-    );
-    if (palacePath) {
-      parts.push(
-        `MEMORY: You have access to a shared MemPalace (MCP tools starting with mempalace_). Use mempalace_diary_write with your name as agent_name to journal your work. Use mempalace_search to find past knowledge. Use mempalace_diary_read to check what teammates have recorded.`,
-      );
-    }
-    if (promptFilePath) {
-      parts.push(`Read ONLY the instructions at ${promptFilePath} and follow them. After loading your instructions, send a ready message to '${leadName}' and WAIT. Do NOT take autonomous action — wait for assignments from the lead or the user.`);
-    } else {
-      parts.push(`Send a ready message to '${leadName}' and WAIT. Do NOT take autonomous action — wait for assignments from the lead or the user.`);
-    }
-    this.injectPrompt(sessionId, parts.join(' '), delayMs);
-  }
-
-  // Team management for persistence
-  registerTeam(team: TeamInfo): void { this.teams.set(team.id, team); }
-  removeTeam(teamId: string): void { this.teams.delete(teamId); }
-  getAllTeams(): TeamInfo[] { return Array.from(this.teams.values()); }
 
   /**
    * Wait for a command to finish by monitoring PTY data flow.
