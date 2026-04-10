@@ -12,7 +12,8 @@ import { exportToObsidian } from './obsidian-exporter';
 
 export function registerIpcHandlers(
   sessionManager: SessionManager,
-  getWindow: () => BrowserWindow | null
+  getWindow: () => BrowserWindow | null,
+  inboxRelay?: import('./inbox-relay').InboxRelay,
 ): void {
   const teamManager = new TeamManager();
 
@@ -273,15 +274,22 @@ export function registerIpcHandlers(
     if (existsSync(staleWsDir)) {
       await rm(staleWsDir, { recursive: true });
     }
+    // Reset relay delivery counts for this team so stale counts don't persist
+    if (inboxRelay) inboxRelay.resetTeam(teamName);
 
     // Create project-local infrastructure BEFORE spawning agents.
     await teamManager.addTeamPermissions(leadCwd, teamName);
     await teamManager.initPalace(leadCwd, teamName);
 
-    // Pre-create all inboxes (project-local .workshop/ directory)
+    // Pre-create inboxes and shared task board (project-local .workshop/ directory)
     await teamManager.createInbox(leadCwd, teamName, leadConfig.name);
     for (const tc of teammateConfigs) {
       await teamManager.createInbox(leadCwd, teamName, tc.name);
+    }
+    // Create empty shared task board
+    const taskBoardPath = path.join(teamManager.workshopDir(leadCwd, teamName), 'tasks.jsonl');
+    if (!existsSync(taskBoardPath)) {
+      await writeFile(taskBoardPath, '');
     }
 
     // Pre-approve directory access via --add-dir AND additionalDirectories

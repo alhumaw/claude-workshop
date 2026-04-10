@@ -111,13 +111,14 @@ app.whenReady().then(async () => {
 
   sessionManager = new SessionManager();
   sessionManager.setWindowGetter(() => mainWindow);
-  registerIpcHandlers(sessionManager, () => mainWindow);
-  createWindow();
-  registerShortcuts();
 
   // Start inbox relay for team message delivery
   const inboxRelay = new InboxRelay(sessionManager);
   inboxRelay.start(3000);
+
+  registerIpcHandlers(sessionManager, () => mainWindow, inboxRelay);
+  createWindow();
+  registerShortcuts();
 
   // Restore persisted sessions — spawn PTY processes now, but wait
   // until the renderer finishes loading before sending IPC

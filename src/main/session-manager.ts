@@ -230,10 +230,11 @@ export class SessionManager {
     delayMs = 8000,
   ): void {
     const inboxBase = `${leadCwd}/.workshop/${teamName}/inboxes`;
+    const taskBoard = `${leadCwd}/.workshop/${teamName}/tasks.jsonl`;
     const parts: string[] = [];
     parts.push(
       `You are '${leadName}', the lead of team '${teamName}'.`,
-      `IMPORTANT: Do NOT use TeamCreate or SendMessage — the team infrastructure is managed by the Workshop UI.`,
+      `IMPORTANT: Do NOT use TeamCreate, SendMessage, TaskCreate, or TaskList — the team infrastructure is managed by the Workshop UI.`,
       `IMPORTANT: Do NOT explore the codebase, scan directories, or search for context on your own. Do NOT read files outside the project directory unless explicitly instructed.`,
     );
     if (teammateNames.length > 0) {
@@ -246,7 +247,12 @@ export class SessionManager {
       `To send a message, use Bash to append to the recipient's inbox (one JSON per line):`,
       `echo '{"from":"${leadName}","text":"your message"}' >> ${inboxBase}/{name}.jsonl`,
       `Messages sent to your inbox at ${inboxBase}/${leadName}.jsonl will be delivered to you automatically — no need to poll.`,
-      `MEMORY: You have access to a shared MemPalace (MCP tools starting with mempalace_). Use mempalace_diary_write to journal your work. Use mempalace_search to find past knowledge. Use mempalace_diary_read to check what teammates have recorded.`,
+      `SHARED TASKS: To assign tasks, append to the shared task board: echo '{"id":N,"assignee":"name","task":"description","status":"pending"}' >> ${taskBoard}`,
+      `Teammates check this file for assignments. Use cat ${taskBoard} to see all tasks.`,
+      `SHARED MEMORY (MemPalace): You have MCP tools (mempalace_*) for persistent shared memory across all agents.`,
+      `On startup: call mempalace_search or mempalace_kg_query to load prior context from previous sessions.`,
+      `During work: file key findings with mempalace_add_drawer (use wing=team-name, room=topic). Record structured facts with mempalace_kg_add (e.g. subject="auth-module" predicate="status" object="complete").`,
+      `After each task: write a diary entry with mempalace_diary_write (agent_name="${leadName}"). Read teammate diaries with mempalace_diary_read.`,
     );
     if (promptFilePath) {
       parts.push(`Read ONLY the instructions at ${promptFilePath} and follow them. After loading your instructions, WAIT for a directive from the user. Do NOT take autonomous action until given a task.`);
@@ -271,16 +277,22 @@ export class SessionManager {
     delayMs = 8000,
   ): void {
     const inboxBase = `${leadCwd}/.workshop/${teamName}/inboxes`;
+    const taskBoard = `${leadCwd}/.workshop/${teamName}/tasks.jsonl`;
     const parts: string[] = [];
     parts.push(
       `You are ${agentName}, a teammate in team '${teamName}'. Your lead is '${leadName}'.`,
-      `IMPORTANT: Do NOT use TeamCreate or SendMessage — the team is managed by the Workshop UI.`,
+      `IMPORTANT: Do NOT use TeamCreate, SendMessage, TaskCreate, or TaskList — the team is managed by the Workshop UI.`,
       `IMPORTANT: Do NOT explore the codebase, scan directories, or search for context on your own. Do NOT read files outside the project directory unless explicitly instructed. Stay in your lane.`,
       `To send a message, use Bash to append to the recipient's inbox (one JSON per line):`,
       `echo '{"from":"${agentName}","text":"your message"}' >> ${inboxBase}/${leadName}.jsonl`,
       `For other teammates, replace the filename: ${inboxBase}/{their-name}.jsonl`,
       `Messages sent to your inbox at ${inboxBase}/${agentName}.jsonl will be delivered to you automatically — no need to poll.`,
-      `MEMORY: You have access to a shared MemPalace (MCP tools starting with mempalace_). Use mempalace_diary_write with your name as agent_name to journal your work. Use mempalace_search to find past knowledge. Use mempalace_diary_read to check what teammates have recorded.`,
+      `SHARED TASKS: Check the shared task board for assignments: cat ${taskBoard}`,
+      `When you complete a task, update it: echo '{"id":N,"assignee":"${agentName}","status":"done","result":"summary"}' >> ${taskBoard}`,
+      `SHARED MEMORY (MemPalace): You have MCP tools (mempalace_*) for persistent shared memory across all agents.`,
+      `On startup: call mempalace_search or mempalace_kg_query to load prior context from previous sessions.`,
+      `During work: file key findings with mempalace_add_drawer (use wing=team-name, room=topic). Record structured facts with mempalace_kg_add (e.g. subject="auth-module" predicate="status" object="complete").`,
+      `After each task: write a diary entry with mempalace_diary_write (agent_name="${agentName}"). Read teammate diaries with mempalace_diary_read.`,
     );
     if (promptFilePath) {
       parts.push(`Read ONLY the instructions at ${promptFilePath} and follow them. After loading your instructions, send a ready message to '${leadName}' and WAIT. Do NOT take autonomous action — wait for assignments from the lead or the user.`);
