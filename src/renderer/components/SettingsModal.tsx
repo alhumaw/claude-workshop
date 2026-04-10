@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 
 interface Props {
   onClose: () => void;
+  onShowHallOfFame?: () => void;
 }
 
-export function SettingsModal({ onClose }: Props) {
+export function SettingsModal({ onClose, onShowHallOfFame }: Props) {
   const [vaultPath, setVaultPath] = useState('');
+  const [enableBattleSystem, setEnableBattleSystem] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getConfig().then((cfg: any) => {
       setVaultPath(cfg.vaultPath ?? '');
+      setEnableBattleSystem(cfg.enableBattleSystem !== false);
     });
   }, []);
 
@@ -26,7 +29,7 @@ export function SettingsModal({ onClose }: Props) {
   const handleSave = async () => {
     setSaving(true);
     setError('');
-    const result = await window.electronAPI.setConfig({ vaultPath });
+    const result = await window.electronAPI.setConfig({ vaultPath, enableBattleSystem });
     setSaving(false);
     if (result.ok) {
       onClose();
@@ -126,6 +129,73 @@ export function SettingsModal({ onClose }: Props) {
             Exports will be saved as a dated folder inside this vault.
           </span>
         </div>
+
+        {/* Battle System toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label
+            style={{
+              position: 'relative',
+              display: 'inline-block',
+              width: 36,
+              height: 20,
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={enableBattleSystem}
+              onChange={(e) => setEnableBattleSystem(e.target.checked)}
+              style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+            />
+            <span style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 10,
+              background: enableBattleSystem ? 'var(--status-idle)' : 'var(--bg-card)',
+              border: '1px solid var(--border-default)',
+              transition: 'background 0.2s',
+            }}>
+              <span style={{
+                position: 'absolute',
+                top: 2,
+                left: enableBattleSystem ? 18 : 2,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: enableBattleSystem ? '#000' : 'var(--text-muted)',
+                transition: 'left 0.2s',
+              }} />
+            </span>
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+              Agent Battles
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Agents fight mobs as they work. XP from token consumption, leveling, cosmetic loot.
+            </span>
+          </div>
+        </div>
+
+        {/* Hall of Fame */}
+        {onShowHallOfFame && (
+          <button
+            onClick={() => { onClose(); onShowHallOfFame(); }}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 6,
+              padding: '8px',
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            Hall of Fame — View retired agents
+          </button>
+        )}
 
         {/* Save button */}
         <button

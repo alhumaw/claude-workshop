@@ -6,6 +6,8 @@ import { registerIpcHandlers } from './ipc-handlers';
 import { TeamWatcher } from './team-watcher';
 import { IPC } from '../shared/types';
 import { saveSessions, loadSessions, clearSessions } from './persistence';
+import { loadConfig } from './config';
+import { createBattleState } from './battle-engine';
 
 app.setName('Claude Workshop');
 
@@ -119,6 +121,11 @@ app.whenReady().then(async () => {
 
   sessionManager = new SessionManager();
   sessionManager.setWindowGetter(() => mainWindow);
+
+  // Load config and configure battle system
+  const config = await loadConfig();
+  sessionManager.setBattleSystemEnabled(config.enableBattleSystem !== false);
+
   shellTerminal = new ShellTerminal();
   const teamWatcher = new TeamWatcher();
   teamWatcher.setWindowGetter(() => mainWindow);
@@ -232,6 +239,13 @@ app.whenReady().then(async () => {
       info.teamId = saved.teamId;
       info.teamRole = saved.teamRole;
       info.teamAgentName = saved.teamAgentName;
+
+      // Restore battle state (persisted) or create new one for standalone sessions
+      if (saved.battleState) {
+        info.battleState = { ...saved.battleState, pendingBattle: null, winStreak: 0 };
+      } else if (!saved.teamId) {
+        info.battleState = createBattleState(info.avatarSeed);
+      }
 
       setTimeout(() => sessionManager.clearBuffer(info.id), 3000);
 

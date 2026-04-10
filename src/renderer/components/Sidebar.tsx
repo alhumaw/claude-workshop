@@ -5,6 +5,13 @@ import { AgentPopover } from './AgentPopover';
 import { ToolkitPanel } from './ToolkitPanel';
 import { SettingsModal } from './SettingsModal';
 import { HelpModal } from './HelpModal';
+import { BattleToastStack, BattleToast } from './BattleOverlay';
+import { AgentProfileCard } from './AgentProfileCard';
+import { BattleLog } from './BattleLog';
+import { Bestiary } from './Bestiary';
+import { HallOfFame } from './HallOfFame';
+import { SessionInfo } from '../../shared/types';
+import { getBiome } from '../../shared/biomes';
 
 interface Props {
   onNewSession: () => void;
@@ -32,6 +39,43 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
   const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
   const [confirmDeleteTeam, setConfirmDeleteTeam] = useState<string | null>(null);
   const deleteButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [activeBattleToasts, setActiveBattleToasts] = useState<BattleToast[]>([]);
+  const toastIdRef = useRef(0);
+  const [profileCard, setProfileCard] = useState<{ sessionId: string; position: { x: number; y: number } } | null>(null);
+  const [battleLogSession, setBattleLogSession] = useState<string | null>(null);
+  const [bestiarySession, setBestiarySession] = useState<string | null>(null);
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+
+  // Listen for battle results from main process — add to toast stack
+  useEffect(() => {
+    return window.electronAPI.onBattleResult((sessionId, result) => {
+      const session = useSessionStore.getState().sessions.find(s => s.id === sessionId);
+      const biome = session?.battleState ? getBiome(session.battleState.level) : null;
+      const toast: BattleToast = {
+        id: ++toastIdRef.current,
+        sessionId,
+        avatarSeed: session?.avatarSeed || '',
+        sessionName: session?.name || 'Agent',
+        result,
+        biomeColor: biome?.color,
+        biomeName: biome?.name,
+      };
+      setActiveBattleToasts(prev => [...prev.slice(-4), toast]);
+    });
+  }, []);
+
+  // Listen for milestone events — show as distinct notification (not a fake battle toast)
+  const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
+  useEffect(() => {
+    return window.electronAPI.onMilestoneEarned((sessionId, milestone, battleName) => {
+      const BADGES: Record<string, string> = {
+        'First Blood': '⚔', 'Untouchable': '🛡', 'Streak Master': '🔥',
+        'Completionist': '📖', 'Dragon Slayer': '🐉', 'Shiny Hunter': '✨', 'Centurion': '👑',
+      };
+      setMilestoneToast(`${BADGES[milestone] || '🏆'} ${battleName} earned ${milestone}!`);
+      setTimeout(() => setMilestoneToast(null), 4000);
+    });
+  }, []);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
@@ -56,6 +100,12 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
         case 'rename':
           setRenamingId(sessionId);
           break;
+        case 'battle-log':
+          setBattleLogSession(sessionId);
+          break;
+        case 'bestiary':
+          setBestiarySession(sessionId);
+          break;
       }
     });
   }, [setActive, handleKillSession]);
@@ -71,7 +121,36 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      position: 'relative',
     }}>
+      {/* Battle toast notifications */}
+      <BattleToastStack
+        toasts={activeBattleToasts}
+        onDismiss={(id) => setActiveBattleToasts(prev => prev.filter(t => t.id !== id))}
+      />
+
+      {/* Milestone notification — distinct from battle toasts */}
+      {milestoneToast && (
+        <div style={{
+          position: 'absolute',
+          top: 50,
+          left: 8,
+          right: 8,
+          zIndex: 200,
+          background: 'rgba(20, 20, 20, 0.95)',
+          border: '1px solid rgba(250, 204, 21, 0.5)',
+          borderRadius: 8,
+          padding: '8px 12px',
+          fontSize: 12,
+          fontWeight: 600,
+          color: '#facc15',
+          textAlign: 'center',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 0 12px rgba(250, 204, 21, 0.3)',
+          animation: 'battleFlash 0.5s ease-in-out 3',
+        }}>
+          {milestoneToast}
+        </div>
+      )}
       {/* Header */}
       <div style={{
         padding: '12px 16px',
@@ -226,12 +305,15 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
               transition: 'opacity 0.15s ease, border-color 0.15s ease',
             }}
           >
-            <SessionCard
-              session={session}
-              isActive={session.id === activeSessionId}
-              onClick={() => setActive(session.id)}
-              onContextMenu={(e) => handleContextMenu(e, session.id)}
-            />
+            <div style={{ position: 'relative' }}>
+              <SessionCard
+                session={session}
+                isActive={session.id === activeSessionId}
+                onClick={() => setActive(session.id)}
+                onContextMenu={(e) => handleContextMenu(e, session.id)}
+                onAvatarRightClick={(e) => setProfileCard({ sessionId: session.id, position: { x: e.clientX, y: e.clientY } })}
+              />
+            </div>
           </div>
         ))}
 
@@ -408,8 +490,28 @@ export function Sidebar({ onNewSession, onNewTeam }: Props) {
         />
       )}
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onShowHallOfFame={() => setShowHallOfFame(true)} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {profileCard && (() => {
+        const liveSession = sessions.find(s => s.id === profileCard.sessionId);
+        if (!liveSession) return null;
+        return (
+          <AgentProfileCard
+            session={liveSession}
+            position={profileCard.position}
+            onClose={() => setProfileCard(null)}
+          />
+        );
+      })()}
+      {battleLogSession && (() => {
+        const s = sessions.find(s => s.id === battleLogSession);
+        return s?.battleState ? <BattleLog battleState={s.battleState} onClose={() => setBattleLogSession(null)} /> : null;
+      })()}
+      {bestiarySession && (() => {
+        const s = sessions.find(s => s.id === bestiarySession);
+        return s?.battleState ? <Bestiary battleState={s.battleState} onClose={() => setBestiarySession(null)} /> : null;
+      })()}
+      {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
     </div>
   );
 }

@@ -165,4 +165,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC.TEAM_LOAD_TEMPLATES),
   deleteTeamTemplate: (templateId: string) =>
     ipcRenderer.invoke(IPC.TEAM_DELETE_TEMPLATE, { templateId }),
+
+  // Battle system events
+  onBattleResult: (callback: (sessionId: string, result: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { sessionId: string; result: any }) => {
+      callback(payload.sessionId, payload.result);
+    };
+    ipcRenderer.on(IPC.BATTLE_RESULT, listener);
+    return () => ipcRenderer.removeListener(IPC.BATTLE_RESULT, listener);
+  },
+
+  // Milestone events
+  onMilestoneEarned: (callback: (sessionId: string, milestone: string, battleName: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { sessionId: string; milestone: string; battleName: string }) => {
+      callback(payload.sessionId, payload.milestone, payload.battleName);
+    };
+    ipcRenderer.on(IPC.MILESTONE_EARNED, listener);
+    return () => ipcRenderer.removeListener(IPC.MILESTONE_EARNED, listener);
+  },
+
+  // Hall of Fame
+  loadHallOfFame: () =>
+    ipcRenderer.invoke(IPC.HALL_OF_FAME_LOAD),
 });
